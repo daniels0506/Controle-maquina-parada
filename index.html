@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monitor de Paradas de Máquinas - Cloud Sync</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            industrial: {
+              900: '#0f172a',
+              800: '#1e293b',
+              700: '#334155',
+              border: '#475569',
+              accent: '#38bdf8',
+              danger: '#ef4444',
+              warning: '#f59e0b',
+              success: '#10b981'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.85; transform: scale(0.995); }
+    }
+    .animate-pulse-subtle {
+      animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="bg-industrial-900 text-slate-100 font-sans min-h-screen flex flex-col antialiased selection:bg-sky-500 selection:text-white">
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
+
+  <!-- Cabeçalho Principal -->
+  <header class="bg-industrial-800 border-b border-slate-700/60 sticky top-0 z-30 shadow-md backdrop-blur-md bg-opacity-90">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="p-2 bg-sky-500/10 border border-sky-500/30 rounded-lg text-sky-400">
+          <i data-lucide="activity" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white flex items-center gap-2">
+            Monitor de Paradas
+            <span class="text-xs font-normal px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 border border-slate-600">Chão de Fábrica</span>
+          </h1>
+          <p class="text-xs text-slate-400">Sincronização Nuvem Multi-Dispositivo</p>
+        </div>
+      </div>
+
+      <!-- Indicador de Conexão Firebase & Botão de Configuração -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        <div id="statusIndicator" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+          <span id="statusText">Conectado (Nuvem)</span>
+        </div>
+
+        <button onclick="openConfigModal()" title="Configurar Banco de Dados" 
+          class="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 rounded-lg text-slate-300 transition-colors">
+          <i data-lucide="settings" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Banner de Dica de Configuração (Caso esteja em chave genérica) -->
+  <div id="demoWarningBanner" class="bg-sky-950/60 border-b border-sky-800/50 px-4 py-2 text-xs text-sky-300 flex items-center justify-between hidden">
+    <div class="max-w-7xl mx-auto w-full flex items-center justify-between gap-2">
+      <div class="flex items-center gap-2">
+        <i data-lucide="wifi" class="w-4 h-4 text-sky-400 shrink-0"></i>
+        <span>Sincronização ativa! Para conectar os celulares da sua empresa em uma nuvem privada de custo zero, configure suas chaves do Firebase.</span>
+      </div>
+      <button onclick="openConfigModal()" class="underline font-semibold hover:text-white shrink-0">Configurar Nuvem</button>
+    </div>
+  </div>
+
+  <!-- Conteúdo Principal -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+
+    <!-- RESUMO DE ESTATÍSTICAS / KPIs -->
+    <section class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div class="bg-industrial-800/80 border border-slate-700/70 rounded-xl p-4 flex flex-col justify-between shadow-sm">
+        <div class="flex items-center justify-between text-slate-400 mb-1">
+          <span class="text-xs font-medium">Total de Máquinas</span>
+          <i data-lucide="cpu" class="w-4 h-4 text-slate-400"></i>
+        </div>
+        <div class="text-2xl font-bold text-white">5</div>
+      </div>
+
+      <div class="bg-industrial-800/80 border border-slate-700/70 rounded-xl p-4 flex flex-col justify-between shadow-sm">
+        <div class="flex items-center justify-between text-emerald-400 mb-1">
+          <span class="text-xs font-medium">Em Produção</span>
+          <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+        </div>
+        <div id="statOperating" class="text-2xl font-bold text-emerald-400">5</div>
+      </div>
+
+      <div class="bg-industrial-800/80 border border-slate-700/70 rounded-xl p-4 flex flex-col justify-between shadow-sm">
+        <div class="flex items-center justify-between text-red-400 mb-1">
+          <span class="text-xs font-medium">Em Parada</span>
+          <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+        </div>
+        <div id="statStopped" class="text-2xl font-bold text-red-400">0</div>
+      </div>
+
+      <div class="bg-industrial-800/80 border border-slate-700/70 rounded-xl p-4 flex flex-col justify-between shadow-sm">
+        <div class="flex items-center justify-between text-sky-400 mb-1">
+          <span class="text-xs font-medium">Paradas Hoje</span>
+          <i data-lucide="clock" class="w-4 h-4"></i>
+        </div>
+        <div id="statTodayCount" class="text-2xl font-bold text-sky-400">0</div>
+      </div>
+    </section>
+
+    <!-- SEÇÃO: STATUS DAS MÁQUINAS -->
+    <section class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base sm:text-lg font-semibold text-slate-200 flex items-center gap-2">
+          <i data-lucide="layout-grid" class="w-5 h-5 text-sky-400"></i>
+          Status das Máquinas (Sincronizado)
+        </h2>
+        <span class="text-xs text-slate-400 flex items-center gap-1">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          Tempo Real
+        </span>
+      </div>
+
+      <!-- Grid de Cards das 5 Máquinas -->
+      <div id="machinesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <!-- Renderizado dinamicamente via JS -->
+      </div>
+    </section>
+
+    <!-- PAINEL DUPLO: FORMULÁRIO DE INÍCIO + INFORMAÇÕES DE SUPORTE -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      
+      <!-- Formulário de Iniciar Parada -->
+      <div class="lg:col-span-2 bg-industrial-800 border border-slate-700/70 rounded-xl p-5 shadow-md">
+        <div class="flex items-center gap-2.5 pb-4 mb-4 border-b border-slate-700/60">
+          <div class="p-2 bg-red-500/10 text-red-400 rounded-lg">
+            <i data-lucide="play-circle" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-100 text-base">Registrar Nova Parada</h3>
+            <p class="text-xs text-slate-400">Ao clicar em iniciar, todos os celulares sincronizados verão o cronômetro imediatamente</p>
+          </div>
+        </div>
+
+        <form id="startStopForm" class="space-y-4" onsubmit="handleStartDowntime(event)">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <!-- Seleção de Máquina -->
+            <div>
+              <label for="machineSelect" class="block text-xs font-medium text-slate-300 mb-1.5">
+                Selecione a Máquina <span class="text-red-400">*</span>
+              </label>
+              <div class="relative">
+                <select id="machineSelect" required
+                  class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-colors appearance-none">
+                  <option value="" disabled selected>Escolha uma máquina...</option>
+                  <option value="EPSON">EPSON</option>
+                  <option value="VANGUARD">VANGUARD</option>
+                  <option value="AGFA">AGFA</option>
+                  <option value="P5">P5</option>
+                  <option value="LIYU">LIYU</option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+                  <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                </div>
+              </div>
+            </div>
+
+            <!-- Seleção do Motivo -->
+            <div>
+              <label for="reasonSelect" class="block text-xs font-medium text-slate-300 mb-1.5">
+                Motivo da Parada <span class="text-red-400">*</span>
+              </label>
+              <div class="relative">
+                <select id="reasonSelect" required
+                  class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-colors appearance-none">
+                  <option value="" disabled selected>Escolha o motivo...</option>
+                  <option value="Troca de material">Troca de material</option>
+                  <option value="Preparação ou troca de serviço">Preparação ou troca de serviço</option>
+                  <option value="Limpeza da máquina">Limpeza da máquina</option>
+                  <option value="Impressão de teste">Impressão de teste</option>
+                  <option value="Falta de tinta ou material">Falta de tinta ou material</option>
+                  <option value="Aguardando arquivo ou aprovação">Aguardando arquivo ou aprovação</option>
+                  <option value="Falha técnica ou alarme">Falha técnica ou alarme</option>
+                  <option value="Manutenção programada">Manutenção programada</option>
+                  <option value="Crash da máquina">Crash da máquina</option>
+                  <option value="Colocar/retirar skins">Colocar/retirar skins</option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+                  <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Observação -->
+          <div>
+            <label for="observationInput" class="block text-xs font-medium text-slate-300 mb-1.5">
+              Observação <span class="text-slate-500 font-normal">(Opcional)</span>
+            </label>
+            <textarea id="observationInput" rows="3"
+              placeholder="Ex: Aguardando técnico porque a cabeça de impressão apresentou falha."
+              class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-colors resize-none placeholder:text-slate-600"></textarea>
+          </div>
+
+          <!-- Botão Submeter -->
+          <div class="flex justify-end pt-2">
+            <button type="submit" id="btnStartDowntime"
+              class="w-full sm:w-auto px-6 py-2.5 bg-red-600 hover:bg-red-500 active:bg-red-700 text-white font-semibold text-sm rounded-lg shadow-md transition-all flex items-center justify-center gap-2">
+              <i data-lucide="power" class="w-4 h-4"></i>
+              Iniciar Parada
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Guia / Informações Rápidas -->
+      <div class="bg-industrial-800/60 border border-slate-700/60 rounded-xl p-5 flex flex-col justify-between">
+        <div>
+          <h3 class="font-bold text-slate-200 text-sm mb-3 flex items-center gap-2">
+            <i data-lucide="share-2" class="w-4 h-4 text-sky-400"></i>
+            Sincronização Nuvem Global
+          </h3>
+          <ul class="space-y-2.5 text-xs text-slate-300">
+            <li class="flex items-start gap-2">
+              <span class="text-sky-400 font-bold">•</span>
+              <span><strong>Acesso Compartilhado:</strong> Copie o link desta página e envie para a equipe. Qualquer alteração em um celular é vista por todos instantly.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-sky-400 font-bold">•</span>
+              <span><strong>Cronômetro Persistente:</strong> O tempo decorrido utiliza carimbo de data/hora oficial do servidor, ignorando se o celular for desligado ou fechado.</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-sky-400 font-bold">•</span>
+              <span><strong>Sem Login:</strong> Zero barreiras de entrada no chão de fábrica. Qualquer operador pode iniciar e encerrar paradas.</span>
+            </li>
+          </ul>
+        </div>
+        <div class="mt-4 pt-3 border-t border-slate-700/50 text-[11px] text-slate-400 flex items-center justify-between">
+          <span>Servidor Firebase: Ativo</span>
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEÇÃO: HISTÓRICO DE PARADAS -->
+    <section class="bg-industrial-800 border border-slate-700/70 rounded-xl p-5 shadow-md space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-700/60">
+        <div>
+          <h3 class="font-bold text-slate-100 text-base flex items-center gap-2">
+            <i data-lucide="history" class="w-5 h-5 text-sky-400"></i>
+            Histórico de Paradas
+          </h3>
+          <p class="text-xs text-slate-400">Registros em tempo real salvos na nuvem</p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="exportToCSV()" 
+            class="px-3.5 py-1.5 bg-slate-700 hover:bg-slate-600 active:bg-slate-800 text-slate-200 border border-slate-600 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 shadow-sm">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+            Exportar CSV
+          </button>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <!-- Filtro por Máquina -->
+        <div>
+          <label class="block text-[11px] font-medium text-slate-400 mb-1">Filtrar por Máquina</label>
+          <select id="filterMachine" onchange="renderHistory()" 
+            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500">
+            <option value="ALL">Todas as máquinas</option>
+            <option value="EPSON">EPSON</option>
+            <option value="VANGUARD">VANGUARD</option>
+            <option value="AGFA">AGFA</option>
+            <option value="P5">P5</option>
+            <option value="LIYU">LIYU</option>
+          </select>
+        </div>
+
+        <!-- Busca por texto -->
+        <div>
+          <label class="block text-[11px] font-medium text-slate-400 mb-1">Buscar por Motivo ou Observação</label>
+          <div class="relative">
+            <input type="text" id="filterSearch" oninput="renderHistory()" placeholder="Digite para buscar..."
+              class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500 placeholder:text-slate-600">
+            <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5"></i>
+          </div>
+        </div>
+
+        <!-- Filtro por Status -->
+        <div>
+          <label class="block text-[11px] font-medium text-slate-400 mb-1">Status da Parada</label>
+          <select id="filterStatus" onchange="renderHistory()" 
+            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500">
+            <option value="ALL">Todos os status</option>
+            <option value="ACTIVE">Apenas Ativas</option>
+            <option value="CLOSED">Apenas Encerradas</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Tabela para Desktop -->
+      <div class="hidden md:block overflow-x-auto rounded-lg border border-slate-700/60">
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-900/90 text-slate-400 font-semibold uppercase tracking-wider border-b border-slate-700/60">
+            <tr>
+              <th class="p-3">Máquina</th>
+              <th class="p-3">Motivo</th>
+              <th class="p-3">Início</th>
+              <th class="p-3">Fim</th>
+              <th class="p-3">Duração</th>
+              <th class="p-3">Observação</th>
+              <th class="p-3 text-right">Status</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody" class="divide-y divide-slate-700/50 bg-slate-900/30">
+            <!-- Renderizado dinamicamente via JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Lista Card para Celulares -->
+      <div id="historyMobileList" class="block md:hidden space-y-2.5">
+        <!-- Renderizado dinamicamente via JS -->
+      </div>
+
+      <!-- Mensagem quando não houver histórico -->
+      <div id="noHistoryMessage" class="hidden text-center py-8 text-slate-500 text-xs">
+        Nenhum registro encontrado no histórico.
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL DE CONFIGURAÇÕES NUVEM / FIREBASE -->
+  <div id="configModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden">
+    <div class="bg-industrial-800 border border-slate-700 rounded-xl p-6 max-w-md w-full shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-700 pb-3">
+        <div class="flex items-center gap-2">
+          <i data-lucide="cloud" class="w-5 h-5 text-sky-400"></i>
+          <h3 class="font-bold text-slate-100 text-base">Configuração do Firebase Nuvem</h3>
+        </div>
+        <button onclick="closeConfigModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <p class="text-xs text-slate-300">
+        O sistema já está utilizando um banco de dados em tempo real compartilhado. Se você deseja conectar ao seu próprio projeto Firebase (100% gratuito), cole suas credenciais JSON abaixo:
+      </p>
+
+      <div>
+        <label class="block text-xs font-medium text-slate-300 mb-1">Firebase Config JSON:</label>
+        <textarea id="firebaseConfigInput" rows="6" placeholder='{
+  "apiKey": "AIzaSy...",
+  "authDomain": "seu-app.firebaseapp.com",
+  "projectId": "seu-app",
+  "storageBucket": "seu-app.appspot.com",
+  "messagingSenderId": "123...",
+  "appId": "1:123..."
+}' class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs font-mono text-slate-200 focus:outline-none focus:border-sky-500 resize-none"></textarea>
+      </div>
+
+      <div class="flex items-center justify-between pt-2">
+        <button onclick="resetDefaultConfig()" class="text-xs text-slate-400 hover:text-sky-400 underline">Restaurar Padrão</button>
+        <div class="flex gap-2">
+          <button onclick="closeConfigModal()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-xs text-slate-200 rounded-lg">Cancelar</button>
+          <button onclick="saveCustomConfig()" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-xs font-semibold text-white rounded-lg shadow">Salvar e Conectar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL / NOTIFICAÇÃO PERSONALIZADA (sem alert) -->
+  <div id="customModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden">
+    <div class="bg-industrial-800 border border-slate-700 rounded-xl p-5 max-w-sm w-full shadow-xl space-y-4">
+      <div class="flex items-center gap-3">
+        <div id="modalIconContainer" class="p-2 rounded-lg bg-red-500/10 text-red-400">
+          <i id="modalIcon" data-lucide="alert-circle" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h4 id="modalTitle" class="font-bold text-slate-100 text-sm">Atenção</h4>
+          <p id="modalMessage" class="text-xs text-slate-300 mt-0.5">Mensagem do sistema.</p>
+        </div>
+      </div>
+      <div class="flex justify-end pt-2">
+        <button onclick="closeModal()" class="px-4 py-1.5 bg-slate-700 hover:bg-slate-600 text-xs font-semibold text-slate-100 rounded-lg transition-colors">
+          Entendi
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rodapé -->
+  <footer class="mt-auto border-t border-slate-800 bg-industrial-900 py-4 text-center text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
+      <span>Sistema de Gestão de Paradas &bull; Sincronização Nuvem Multi-Dispositivo</span>
+      <span class="text-slate-600">5 Máquinas &bull; 10 Motivos de Parada</span>
+    </div>
+  </footer>
+
+  <!-- SCRIPT FIREBASE E LÓGICA DO APP -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { 
+      getAuth, 
+      signInAnonymously, 
+      signInWithCustomToken 
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { 
+      getFirestore, 
+      collection, 
+      doc, 
+      setDoc, 
+      updateDoc, 
+      onSnapshot, 
+      addDoc 
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // App ID Global
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'paradas-maquinas-prod';
+
+    // Recupera configuração do Firebase do localStorage ou usa valor injetado/padrão
+    function getFirebaseConfig() {
+      const savedConfig = localStorage.getItem('custom_firebase_config');
+      if (savedConfig) {
+        try {
+          return JSON.parse(savedConfig);
+        } catch (e) {
+          console.error("Configuração personalizada inválida:", e);
+        }
+      }
+
+      if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+        try {
+          return JSON.parse(__firebase_config);
+        } catch(e) {}
+      }
+
+      // Configuração Padrão Fallback
+      return {
+        apiKey: "AIzaSyDemoKeyForPublicTestingOnly12345",
+        authDomain: "downtime-monitor-demo.firebaseapp.com",
+        projectId: "downtime-monitor-demo",
+        storageBucket: "downtime-monitor-demo.appspot.com",
+        messagingSenderId: "123456789012",
+        appId: "1:123456789012:web:abcdef1234567890"
+      };
+    }
+
+    // Inicialização do Firebase
+    let app, auth, db;
+    try {
+      const config = getFirebaseConfig();
+      app = initializeApp(config);
+      auth = getAuth(app);
+      db = getFirestore(app);
+    } catch(err) {
+      console.error("Erro na inicialização do Firebase:", err);
+    }
+
+    // Listas do Sistema
+    const MACHINES = ["EPSON", "VANGUARD", "AGFA", "P5", "LIYU"];
+
+    // Estado da Aplicação
+    let activeDowntimes = {}; 
+    let historyRecords = [];  
+    let timerInterval = null;
+
+    // Elementos DOM
+    const machinesGrid = document.getElementById('machinesGrid');
+    const machineSelect = document.getElementById('machineSelect');
+    const historyTableBody = document.getElementById('historyTableBody');
+    const historyMobileList = document.getElementById('historyMobileList');
+    const noHistoryMessage = document.getElementById('noHistoryMessage');
+
+    // Autenticação Silenciosa sem Tela de Login
+    async function initAuth() {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (err) {
+        console.warn("Autenticação operando em modo anônimo fallback:", err);
+      }
+    }
+
+    // LISTENER TEMPO REAL (onSnapshot) - Regra 1 e Regra 2 rigorosas
+    function setupRealtimeListeners() {
+      if (!db) return;
+
+      // 1. Escuta Status de Paradas Ativas (Disponível em tempo real para todos os celulares)
+      const statusColRef = collection(db, 'artifacts', appId, 'public', 'data', 'machine_status');
+      
+      onSnapshot(statusColRef, (snapshot) => {
+        activeDowntimes = {};
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data && data.isStopped) {
+            activeDowntimes[doc.id] = data;
+          }
+        });
+        updateDashboardUI();
+        updateMachineDropdown();
+        updateStats();
+        showToast("Dados sincronizados com a nuvem", "sky");
+      }, (error) => {
+        console.error("Erro ao escutar Firestore:", error);
+        document.getElementById('statusIndicator').className = 'flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-medium';
+        document.getElementById('statusText').textContent = 'Erro de Conexão';
+      });
+
+      // 2. Escuta Histórico Completo de Paradas
+      const historyColRef = collection(db, 'artifacts', appId, 'public', 'data', 'downtime_history');
+      
+      onSnapshot(historyColRef, (snapshot) => {
+        historyRecords = [];
+        snapshot.forEach((doc) => {
+          historyRecords.push({ id: doc.id, ...doc.data() });
+        });
+        
+        // Ordenação em memória JS (Garante funcionamento sem índices compostos)
+        historyRecords.sort((a, b) => (b.startTimestamp || 0) - (a.startTimestamp || 0));
+        
+        renderHistory();
+        updateStats();
+      }, (error) => {
+        console.error("Erro no histórico do Firestore:", error);
+      });
+    }
+
+    // Renderização dos Cards das Máquinas
+    function updateDashboardUI() {
+      machinesGrid.innerHTML = '';
+
+      MACHINES.forEach((machineName) => {
+        const downtime = activeDowntimes[machineName];
+        const isStopped = !!downtime;
+
+        const card = document.createElement('div');
+        card.className = `rounded-xl border p-4 shadow-sm transition-all flex flex-col justify-between relative overflow-hidden ${
+          isStopped 
+            ? 'bg-red-950/20 border-red-500/60 animate-pulse-subtle' 
+            : 'bg-industrial-800 border-slate-700/80 hover:border-slate-600'
+        }`;
+
+        let cardHTML = `
+          <div>
+            <div class="flex items-center justify-between border-b border-slate-700/50 pb-2.5 mb-3">
+              <div class="flex items-center gap-2">
+                <i data-lucide="printer" class="w-4 h-4 ${isStopped ? 'text-red-400' : 'text-emerald-400'}"></i>
+                <h3 class="font-bold text-base text-white tracking-wide">${machineName}</h3>
+              </div>
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                isStopped 
+                  ? 'bg-red-500/10 text-red-400 border-red-500/30' 
+                  : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+              }">
+                ${isStopped ? 'EM PARADA' : 'OPERACIONAL'}
+              </span>
+            </div>
+        `;
+
+        if (isStopped) {
+          cardHTML += `
+            <div class="space-y-2 mb-4">
+              <div>
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">Motivo:</span>
+                <span class="text-sm font-semibold text-red-300">${escapeHTML(downtime.reason)}</span>
+              </div>
+              ${downtime.observation ? `
+                <div>
+                  <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">Observação:</span>
+                  <p class="text-xs text-slate-300 italic bg-slate-900/60 p-2 rounded border border-slate-800/80 break-words">${escapeHTML(downtime.observation)}</p>
+                </div>
+              ` : ''}
+              <div>
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">Início da Parada:</span>
+                <span class="text-xs text-slate-300">${formatDateTime(downtime.startTimestamp)}</span>
+              </div>
+              
+              <!-- CRONÔMETRO AO VIVO (SINCRONIZADO) -->
+              <div class="bg-slate-900/90 border border-red-500/40 rounded-lg p-3 mt-3 text-center shadow-inner">
+                <span class="text-[10px] text-slate-400 font-mono block uppercase tracking-wider">Tempo Decorrido</span>
+                <div class="text-2xl sm:text-3xl font-black font-mono text-red-400 tracking-wider timer-display" data-start="${downtime.startTimestamp}">
+                  00:00:00
+                </div>
+              </div>
+            </div>
+
+            <button onclick="handleEndDowntime('${machineName}')"
+              class="w-full mt-2 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 shadow-md">
+              <i data-lucide="check-circle" class="w-4 h-4"></i>
+              Encerrar Parada
+            </button>
+          `;
+        } else {
+          cardHTML += `
+            <div class="py-6 text-center space-y-1">
+              <i data-lucide="check-circle-2" class="w-8 h-8 text-emerald-500/40 mx-auto"></i>
+              <p class="text-xs text-slate-400">Máquina em plena produção</p>
+            </div>
+            <div class="text-center pt-2 border-t border-slate-700/40 text-[11px] text-slate-500">
+              Pronta para operar
+            </div>
+          `;
+        }
+
+        cardHTML += `</div>`;
+        card.innerHTML = cardHTML;
+        machinesGrid.appendChild(card);
+      });
+
+      lucide.createIcons();
+      updateTimers();
+    }
+
+    // Atualização de Dropdown
+    function updateMachineDropdown() {
+      const options = machineSelect.options;
+      for (let i = 0; i < options.length; i++) {
+        const val = options[i].value;
+        if (val) {
+          const isStopped = !!activeDowntimes[val];
+          options[i].disabled = isStopped;
+          options[i].text = isStopped ? `${val} (EM PARADA)` : val;
+        }
+      }
+    }
+
+    // Cronômetro Vivo Baseado no Timestamp do Servidor
+    function updateTimers() {
+      const displays = document.querySelectorAll('.timer-display');
+      const now = Date.now();
+
+      displays.forEach((display) => {
+        const startTimestamp = parseInt(display.getAttribute('data-start'), 10);
+        if (startTimestamp) {
+          const elapsedMs = Math.max(0, now - startTimestamp);
+          display.textContent = formatDurationMs(elapsedMs);
+        }
+      });
+    }
+
+    // Renderização do Histórico
+    window.renderHistory = function() {
+      const machineFilter = document.getElementById('filterMachine').value;
+      const searchFilter = document.getElementById('filterSearch').value.toLowerCase().trim();
+      const statusFilter = document.getElementById('filterStatus').value;
+
+      const filtered = historyRecords.filter(item => {
+        if (machineFilter !== 'ALL' && item.machine !== machineFilter) return false;
+        if (statusFilter === 'ACTIVE' && !item.isActive) return false;
+        if (statusFilter === 'CLOSED' && item.isActive) return false;
+
+        if (searchFilter) {
+          const reasonStr = (item.reason || '').toLowerCase();
+          const obsStr = (item.observation || '').toLowerCase();
+          const machineStr = (item.machine || '').toLowerCase();
+          if (!reasonStr.includes(searchFilter) && !obsStr.includes(searchFilter) && !machineStr.includes(searchFilter)) {
+            return false;
+          }
+        }
+
+        return true;
+      });
+
+      historyTableBody.innerHTML = '';
+      historyMobileList.innerHTML = '';
+
+      if (filtered.length === 0) {
+        noHistoryMessage.classList.remove('hidden');
+        return;
+      } else {
+        noHistoryMessage.classList.add('hidden');
+      }
+
+      filtered.forEach((rec) => {
+        const isRunning = rec.isActive;
+        const durationText = isRunning 
+          ? 'Em andamento...' 
+          : formatDurationMs(rec.endTimestamp - rec.startTimestamp);
+
+        // Desktop Row
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-800/50 transition-colors';
+        tr.innerHTML = `
+          <td class="p-3 font-semibold text-slate-100">${escapeHTML(rec.machine)}</td>
+          <td class="p-3 text-slate-300">${escapeHTML(rec.reason)}</td>
+          <td class="p-3 whitespace-nowrap text-slate-400">${formatDateTime(rec.startTimestamp)}</td>
+          <td class="p-3 whitespace-nowrap text-slate-400">${rec.endTimestamp ? formatDateTime(rec.endTimestamp) : '-'}</td>
+          <td class="p-3 font-mono text-slate-200">${durationText}</td>
+          <td class="p-3 text-slate-300 max-w-xs truncate" title="${escapeHTML(rec.observation || '')}">
+            ${rec.observation ? escapeHTML(rec.observation) : '<span class="text-slate-600 italic">-</span>'}
+          </td>
+          <td class="p-3 text-right">
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${
+              isRunning 
+                ? 'bg-red-500/10 text-red-400 border border-red-500/30' 
+                : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+            }">
+              ${isRunning ? 'ATIVA' : 'ENCERRADA'}
+            </span>
+          </td>
+        `;
+        historyTableBody.appendChild(tr);
+
+        // Mobile Card
+        const mCard = document.createElement('div');
+        mCard.className = 'bg-slate-900/90 border border-slate-700/60 rounded-lg p-3.5 space-y-2';
+        mCard.innerHTML = `
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+            <span class="font-bold text-sm text-white">${escapeHTML(rec.machine)}</span>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${
+              isRunning ? 'bg-red-500/10 text-red-400' : 'bg-emerald-500/10 text-emerald-400'
+            }">
+              ${isRunning ? 'ATIVA' : 'ENCERRADA'}
+            </span>
+          </div>
+          <div class="text-xs text-slate-300 space-y-1">
+            <p><strong class="text-slate-400">Motivo:</strong> ${escapeHTML(rec.reason)}</p>
+            <p><strong class="text-slate-400">Início:</strong> ${formatDateTime(rec.startTimestamp)}</p>
+            ${rec.endTimestamp ? `<p><strong class="text-slate-400">Fim:</strong> ${formatDateTime(rec.endTimestamp)}</p>` : ''}
+            <p><strong class="text-slate-400">Duração:</strong> <span class="font-mono text-sky-400">${durationText}</span></p>
+            ${rec.observation ? `<p class="mt-1 pt-1 border-t border-slate-800 text-slate-400 italic">"${escapeHTML(rec.observation)}"</p>` : ''}
+          </div>
+        `;
+        historyMobileList.appendChild(mCard);
+      });
+    };
+
+    // AÇÃO: Iniciar Parada na Nuvem
+    window.handleStartDowntime = async function(e) {
+      e.preventDefault();
+      
+      const machine = document.getElementById('machineSelect').value;
+      const reason = document.getElementById('reasonSelect').value;
+      const observation = document.getElementById('observationInput').value.trim();
+
+      if (!machine || !reason) {
+        showModal('Campo Obrigatório', 'Selecione a máquina e o motivo da parada.');
+        return;
+      }
+
+      if (activeDowntimes[machine]) {
+        showModal('Aviso', `A máquina ${machine} já está parada no sistema!`);
+        return;
+      }
+
+      const startTimestamp = Date.now();
+
+      try {
+        // 1. Grava no Histórico Global do Firestore
+        const historyColRef = collection(db, 'artifacts', appId, 'public', 'data', 'downtime_history');
+        const historyDoc = await addDoc(historyColRef, {
+          machine,
+          reason,
+          observation,
+          startTimestamp,
+          endTimestamp: null,
+          isActive: true,
+          createdAt: new Date().toISOString()
+        });
+
+        // 2. Atualiza Status em Tempo Real para todos os Dispositivos
+        const statusDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'machine_status', machine);
+        await setDoc(statusDocRef, {
+          machine,
+          isStopped: true,
+          reason,
+          observation,
+          startTimestamp,
+          historyId: historyDoc.id,
+          updatedAt: new Date().toISOString()
+        });
+
+        document.getElementById('startStopForm').reset();
+        showToast(`Parada iniciada para ${machine}`, "emerald");
+
+      } catch (err) {
+        console.error("Erro ao gravar parada na nuvem:", err);
+        showModal('Erro de Conexão', 'Não foi possível salvar na nuvem. Verifique sua conexão.');
+      }
+    };
+
+    // AÇÃO: Encerrar Parada na Nuvem
+    window.handleEndDowntime = async function(machineName) {
+      const downtime = activeDowntimes[machineName];
+      if (!downtime) return;
+
+      const endTimestamp = Date.now();
+
+      try {
+        if (downtime.historyId) {
+          const historyDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'downtime_history', downtime.historyId);
+          await updateDoc(historyDocRef, {
+            endTimestamp,
+            isActive: false,
+            durationMs: endTimestamp - downtime.startTimestamp
+          });
+        }
+
+        const statusDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'machine_status', machineName);
+        await setDoc(statusDocRef, {
+          machine: machineName,
+          isStopped: false,
+          updatedAt: new Date().toISOString()
+        });
+
+        showToast(`Máquina ${machineName} liberada!`, "emerald");
+
+      } catch (err) {
+        console.error("Erro ao encerrar parada:", err);
+        showModal('Erro', 'Falha ao encerrar na nuvem. Tente novamente.');
+      }
+    };
+
+    // Exportar CSV
+    window.exportToCSV = function() {
+      if (historyRecords.length === 0) {
+        showModal('Exportação', 'Nenhum histórico gravado para exportação.');
+        return;
+      }
+
+      let csv = 'Maquina;Motivo;Inicio;Fim;Duracao_Segundos;Status;Observacao\n';
+
+      historyRecords.forEach(item => {
+        const startStr = formatDateTime(item.startTimestamp);
+        const endStr = item.endTimestamp ? formatDateTime(item.endTimestamp) : '';
+        const durSec = item.endTimestamp ? Math.floor((item.endTimestamp - item.startTimestamp) / 1000) : '';
+        const status = item.isActive ? 'ATIVA' : 'ENCERRADA';
+        const obs = (item.observation || '').replace(/;/g, ',').replace(/\n/g, ' ');
+
+        csv += `"${item.machine}";"${item.reason}";"${startStr}";"${endStr}";"${durSec}";"${status}";"${obs}"\n`;
+      });
+
+      const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Historico_Paradas_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+
+    // Atualiza KPIs
+    function updateStats() {
+      const activeCount = Object.keys(activeDowntimes).length;
+      const operatingCount = MACHINES.length - activeCount;
+
+      document.getElementById('statOperating').textContent = operatingCount;
+      document.getElementById('statStopped').textContent = activeCount;
+
+      const todayStart = new Date();
+      todayStart.setHours(0,0,0,0);
+      const todayTimestamp = todayStart.getTime();
+
+      const todayCount = historyRecords.filter(r => r.startTimestamp >= todayTimestamp).length;
+      document.getElementById('statTodayCount').textContent = todayCount;
+    }
+
+    // Modal e Toast Helpers
+    window.showModal = function(title, message, iconName = 'alert-circle', color = 'red') {
+      document.getElementById('modalTitle').textContent = title;
+      document.getElementById('modalMessage').textContent = message;
+
+      const container = document.getElementById('modalIconContainer');
+      const icon = document.getElementById('modalIcon');
+
+      container.className = color === 'emerald' 
+        ? 'p-2 rounded-lg bg-emerald-500/10 text-emerald-400' 
+        : 'p-2 rounded-lg bg-red-500/10 text-red-400';
+
+      icon.setAttribute('data-lucide', iconName);
+      lucide.createIcons();
+
+      document.getElementById('customModal').classList.remove('hidden');
+    };
+
+    window.closeModal = function() {
+      document.getElementById('customModal').classList.add('hidden');
+    };
+
+    function showToast(message, color = "sky") {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `p-3 rounded-lg shadow-xl border text-xs font-medium text-white flex items-center justify-between gap-2 transition-all transform translate-y-2 opacity-0 bg-slate-800 border-slate-700 pointer-events-auto`;
+      
+      let borderAccent = color === 'emerald' ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-sky-500';
+      toast.className += ' ' + borderAccent;
+
+      toast.innerHTML = `
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full ${color === 'emerald' ? 'bg-emerald-400' : 'bg-sky-400'}"></span>
+          <span>${escapeHTML(message)}</span>
+        </div>
+      `;
+
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      }, 10);
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // Configurações do Firebase via Modal
+    window.openConfigModal = function() {
+      const current = getFirebaseConfig();
+      document.getElementById('firebaseConfigInput').value = JSON.stringify(current, null, 2);
+      document.getElementById('configModal').classList.remove('hidden');
+    };
+
+    window.closeConfigModal = function() {
+      document.getElementById('configModal').classList.add('hidden');
+    };
+
+    window.saveCustomConfig = function() {
+      const val = document.getElementById('firebaseConfigInput').value.trim();
+      try {
+        const parsed = JSON.parse(val);
+        localStorage.setItem('custom_firebase_config', JSON.stringify(parsed));
+        showToast("Configurações salvas. Recarregando...", "emerald");
+        setTimeout(() => window.location.reload(), 1000);
+      } catch (err) {
+        showModal('JSON Inválido', 'Certifique-se de colar um objeto JSON do Firebase válido.');
+      }
+    };
+
+    window.resetDefaultConfig = function() {
+      localStorage.removeItem('custom_firebase_config');
+      showToast("Configuração restaurada ao padrão.", "sky");
+      setTimeout(() => window.location.reload(), 800);
+    };
+
+    // Formatadores
+    function formatDateTime(ts) {
+      if (!ts) return '-';
+      const d = new Date(ts);
+      return d.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    }
+
+    function formatDurationMs(ms) {
+      const totalSeconds = Math.floor(ms / 1000);
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+    }
+
+    function escapeHTML(str) {
+      if (!str) return '';
+      return str.replace(/[&<>'"]/g, 
+        tag => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          "'": '&#39;',
+          '"': '&quot;'
+        }[tag] || tag)
+      );
+    }
+
+    // Execução Inicial
+    window.onload = async function() {
+      await initAuth();
+      setupRealtimeListeners();
+      timerInterval = setInterval(updateTimers, 1000);
+      lucide.createIcons();
+    };
+  </script>
+</body>
+</html>
