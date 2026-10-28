@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Monitor de Paradas de Máquinas</title>
+  <title>Monitor de Paradas - Sincronizado</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lucide Icons -->
@@ -48,12 +48,12 @@
             Monitor de Paradas
             <span class="text-xs font-normal px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">Chão de Fábrica</span>
           </h1>
-          <p class="text-xs text-slate-400">Sistema Ativo no Telemóvel</p>
+          <p class="text-xs text-slate-400">Sincronizado entre Telemóveis</p>
         </div>
       </div>
       <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span>Online</span>
+        <span id="syncStatus">Sincronizado (Nuvem)</span>
       </div>
     </div>
   </header>
@@ -85,7 +85,7 @@
     <section class="space-y-4">
       <h2 class="text-base sm:text-lg font-semibold text-slate-200 flex items-center gap-2">
         <i data-lucide="layout-grid" class="w-5 h-5 text-sky-400"></i>
-        Status das Máquinas em Tempo Real
+        Status das Máquinas (Multi-Dispositivo)
       </h2>
       <div id="machinesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         <!-- Renderizado dinamicamente -->
@@ -100,7 +100,7 @@
         </div>
         <div>
           <h3 class="font-bold text-slate-100 text-base">Registrar Nova Parada</h3>
-          <p class="text-xs text-slate-400">Selecione a máquina e o motivo para iniciar o cronômetro</p>
+          <p class="text-xs text-slate-400">Ao iniciar, todos os telemóveis verão o cronômetro em tempo real</p>
         </div>
       </div>
 
@@ -167,15 +167,57 @@
     </section>
   </main>
 
-  <!-- SCRIPT -->
-  <script>
-    const MACHINES = ["EPSON", "VANGUARD", "AGFA", "P5", "LIYU"];
-    let activeDowntimes = JSON.parse(localStorage.getItem('downtime_active') || '{}');
-    let historyRecords = JSON.parse(localStorage.getItem('downtime_history') || '[]');
+  <!-- SCRIPT FIREBASE COM SINCRONIZAÇÃO EM TEMPO REAL -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    function saveData() {
-      localStorage.setItem('downtime_active', JSON.stringify(activeDowntimes));
-      localStorage.setItem('downtime_history', JSON.stringify(historyRecords));
+    // Configuração pública do Firebase para sincronização compartilhada
+    const firebaseConfig = {
+      apiKey: "AIzaSyBw0X11234567890abcdefghijklmnopqrst",
+      authDomain: "controle-maquina-parada.firebaseapp.com",
+      projectId: "controle-maquina-parada",
+      storageBucket: "controle-maquina-parada.appspot.com",
+      messagingSenderId: "123456789012",
+      appId: "1:123456789012:web:1234567890abcdef"
+    };
+
+    const MACHINES = ["EPSON", "VANGUARD", "AGFA", "P5", "LIYU"];
+    let activeDowntimes = {};
+    let historyRecords = [];
+
+    // Inicialização do Firebase
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Conexão em Tempo Real
+    async function initCloudSync() {
+      try {
+        await signInAnonymously(auth);
+      } catch (e) {
+        console.warn("Auth Anónima:", e);
+      }
+
+      // Escuta paradas ativas em tempo real de TODOS os telemóveis
+      onSnapshot(collection(db, "active_downtimes"), (snapshot) => {
+        activeDowntimes = {};
+        snapshot.forEach((doc) => {
+          activeDowntimes[doc.id] = doc.data();
+        });
+        renderUI();
+      });
+
+      // Escuta o histórico em tempo real
+      onSnapshot(collection(db, "history_records"), (snapshot) => {
+        historyRecords = [];
+        snapshot.forEach((doc) => {
+          historyRecords.push(doc.data());
+        });
+        historyRecords.sort((a, b) => b.startTimestamp - a.startTimestamp);
+        renderUI();
+      });
     }
 
     function renderUI() {
@@ -235,7 +277,7 @@
         grid.appendChild(card);
       });
 
-      // Atualiza dropdown
+      // Atualiza o dropdown
       const sel = document.getElementById('machineSelect');
       for (let opt of sel.options) {
         if (opt.value) {
@@ -277,7 +319,7 @@
       });
     }
 
-    window.handleStartDowntime = function(e) {
+    window.handleStartDowntime = async function(e) {
       e.preventDefault();
       const machine = document.getElementById('machineSelect').value;
       const reason = document.getElementById('reasonSelect').value;
@@ -286,34 +328,31 @@
       if (!machine || !reason) return;
 
       const startTimestamp = Date.now();
-      const record = { machine, reason, observation, startTimestamp, endTimestamp: null, isActive: true };
+      const recordId = `${machine}_${startTimestamp}`;
+      const record = { id: recordId, machine, reason, observation, startTimestamp, endTimestamp: null, isActive: true };
 
-      activeDowntimes[machine] = record;
-      historyRecords.unshift(record);
+      // Grava no Firebase Firestore (Nuvem)
+      await setDoc(doc(db, "active_downtimes", machine), record);
+      await setDoc(doc(db, "history_records", recordId), record);
 
-      saveData();
       document.getElementById('startStopForm').reset();
-      renderUI();
     };
 
-    window.handleEndDowntime = function(machineName) {
+    window.handleEndDowntime = async function(machineName) {
       const active = activeDowntimes[machineName];
       if (!active) return;
 
       const endTimestamp = Date.now();
-      active.endTimestamp = endTimestamp;
-      active.isActive = false;
+      
+      // Atualiza o histórico na nuvem
+      await setDoc(doc(db, "history_records", active.id), {
+        ...active,
+        endTimestamp,
+        isActive: false
+      });
 
-      // Atualiza também no histórico
-      const hist = historyRecords.find(r => r.machine === machineName && r.isActive);
-      if (hist) {
-        hist.endTimestamp = endTimestamp;
-        hist.isActive = false;
-      }
-
-      delete activeDowntimes[machineName];
-      saveData();
-      renderUI();
+      // Remove a máquina do estado de parada na nuvem
+      await deleteDoc(doc(db, "active_downtimes", machineName));
     };
 
     function updateStats() {
@@ -356,7 +395,7 @@
     };
 
     window.onload = function() {
-      renderUI();
+      initCloudSync();
       setInterval(updateTimers, 1000);
     };
   </script>
