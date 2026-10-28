@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Monitor de Paradas de Máquinas - Cloud Sync</title>
+  <title>Monitor de Paradas de Máquinas</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lucide Icons -->
@@ -18,58 +18,27 @@
       darkMode: 'class',
       theme: {
         extend: {
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-          },
+          fontFamily: { sans: ['Inter', 'sans-serif'] },
           colors: {
             industrial: {
               900: '#0f172a',
               800: '#1e293b',
-              700: '#334155',
-              border: '#475569',
-              accent: '#38bdf8',
-              danger: '#ef4444',
-              warning: '#f59e0b',
-              success: '#10b981'
+              700: '#334155'
             }
           }
         }
       }
     }
   </script>
-
-  <style>
-    @keyframes pulse-subtle {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.85; transform: scale(0.995); }
-    }
-    .animate-pulse-subtle {
-      animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-    }
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #0f172a;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #334155;
-      border-radius: 4px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #475569;
-    }
-  </style>
 </head>
-<body class="bg-industrial-900 text-slate-100 font-sans min-h-screen flex flex-col antialiased selection:bg-sky-500 selection:text-white">
+<body class="bg-industrial-900 text-slate-100 font-sans min-h-screen flex flex-col antialiased">
 
-  <!-- Toast Notification Container -->
+  <!-- Toast / Notificação -->
   <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
 
-  <!-- Cabeçalho Principal -->
-  <header class="bg-industrial-800 border-b border-slate-700/60 sticky top-0 z-30 shadow-md backdrop-blur-md bg-opacity-90">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between">
+  <!-- Cabeçalho -->
+  <header class="bg-industrial-800 border-b border-slate-700/60 sticky top-0 z-30 shadow-md">
+    <div class="max-w-7xl mx-auto px-4 py-3.5 flex items-center justify-between">
       <div class="flex items-center space-x-3">
         <div class="p-2 bg-sky-500/10 border border-sky-500/30 rounded-lg text-sky-400">
           <i data-lucide="activity" class="w-6 h-6"></i>
@@ -77,474 +46,157 @@
         <div>
           <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white flex items-center gap-2">
             Monitor de Paradas
-            <span class="text-xs font-normal px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 border border-slate-600">Chão de Fábrica</span>
+            <span class="text-xs font-normal px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">Chão de Fábrica</span>
           </h1>
-          <p class="text-xs text-slate-400">Sincronização Nuvem Multi-Dispositivo</p>
+          <p class="text-xs text-slate-400">Sistema Ativo no Telemóvel</p>
         </div>
       </div>
-
-      <!-- Indicador de Conexão Firebase & Botão de Configuração -->
-      <div class="flex items-center gap-2 sm:gap-3">
-        <div id="statusIndicator" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-          <span id="statusText">Conectado (Nuvem)</span>
-        </div>
-
-        <button onclick="openConfigModal()" title="Configurar Banco de Dados" 
-          class="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-600 rounded-lg text-slate-300 transition-colors">
-          <i data-lucide="settings" class="w-4 h-4"></i>
-        </button>
+      <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span>Online</span>
       </div>
     </div>
   </header>
 
   <!-- Conteúdo Principal -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 space-y-6">
 
-    <!-- RESUMO DE ESTATÍSTICAS / KPIs -->
+    <!-- ESTATÍSTICAS / KPIs -->
     <section class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-      <div class="bg-industrial-800/80 border border-slate-700/70 rounded-xl p-4 flex flex-col justify-between shadow-sm">
-        <div class="flex items-center justify-between text-slate-400 mb-1">
-          <span class="text-xs font-medium">Total de Máquinas</span>
-          <i data-lucide="cpu" class="w-4 h-4 text-slate-400"></i>
-        </div>
+      <div class="bg-industrial-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between">
+        <span class="text-xs text-slate-400">Total de Máquinas</span>
         <div class="text-2xl font-bold text-white">5</div>
       </div>
-
-      <div class="bg-industrial-800/80 border border-slate-700/70 rounded-xl p-4 flex flex-col justify-between shadow-sm">
-        <div class="flex items-center justify-between text-emerald-400 mb-1">
-          <span class="text-xs font-medium">Em Produção</span>
-          <i data-lucide="check-circle-2" class="w-4 h-4"></i>
-        </div>
+      <div class="bg-industrial-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between">
+        <span class="text-xs text-emerald-400">Em Produção</span>
         <div id="statOperating" class="text-2xl font-bold text-emerald-400">5</div>
       </div>
-
-      <div class="bg-industrial-800/80 border border-slate-700/70 rounded-xl p-4 flex flex-col justify-between shadow-sm">
-        <div class="flex items-center justify-between text-red-400 mb-1">
-          <span class="text-xs font-medium">Em Parada</span>
-          <i data-lucide="alert-triangle" class="w-4 h-4"></i>
-        </div>
+      <div class="bg-industrial-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between">
+        <span class="text-xs text-red-400">Em Parada</span>
         <div id="statStopped" class="text-2xl font-bold text-red-400">0</div>
       </div>
-
-      <div class="bg-industrial-800/80 border border-slate-700/70 rounded-xl p-4 flex flex-col justify-between shadow-sm">
-        <div class="flex items-center justify-between text-sky-400 mb-1">
-          <span class="text-xs font-medium">Paradas Hoje</span>
-          <i data-lucide="clock" class="w-4 h-4"></i>
-        </div>
+      <div class="bg-industrial-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between">
+        <span class="text-xs text-sky-400">Paradas Hoje</span>
         <div id="statTodayCount" class="text-2xl font-bold text-sky-400">0</div>
       </div>
     </section>
 
-    <!-- SEÇÃO: STATUS DAS MÁQUINAS -->
+    <!-- STATUS DAS MÁQUINAS (COM CRONÔMETRO E BOTÃO DE FINALIZAR) -->
     <section class="space-y-4">
-      <div class="flex items-center justify-between">
-        <h2 class="text-base sm:text-lg font-semibold text-slate-200 flex items-center gap-2">
-          <i data-lucide="layout-grid" class="w-5 h-5 text-sky-400"></i>
-          Status das Máquinas (Sincronizado)
-        </h2>
-        <span class="text-xs text-slate-400 flex items-center gap-1">
-          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-          Tempo Real
-        </span>
-      </div>
-
-      <!-- Grid de Cards das 5 Máquinas -->
+      <h2 class="text-base sm:text-lg font-semibold text-slate-200 flex items-center gap-2">
+        <i data-lucide="layout-grid" class="w-5 h-5 text-sky-400"></i>
+        Status das Máquinas em Tempo Real
+      </h2>
       <div id="machinesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        <!-- Renderizado dinamicamente via JS -->
+        <!-- Renderizado dinamicamente -->
       </div>
     </section>
 
-    <!-- PAINEL DUPLO: FORMULÁRIO DE INÍCIO + INFORMAÇÕES DE SUPORTE -->
-    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      
-      <!-- Formulário de Iniciar Parada -->
-      <div class="lg:col-span-2 bg-industrial-800 border border-slate-700/70 rounded-xl p-5 shadow-md">
-        <div class="flex items-center gap-2.5 pb-4 mb-4 border-b border-slate-700/60">
-          <div class="p-2 bg-red-500/10 text-red-400 rounded-lg">
-            <i data-lucide="play-circle" class="w-5 h-5"></i>
-          </div>
-          <div>
-            <h3 class="font-bold text-slate-100 text-base">Registrar Nova Parada</h3>
-            <p class="text-xs text-slate-400">Ao clicar em iniciar, todos os celulares sincronizados verão o cronômetro imediatamente</p>
-          </div>
+    <!-- FORMULÁRIO DE REGISTAR PARADA -->
+    <section class="bg-industrial-800 border border-slate-700 rounded-xl p-5 shadow-md">
+      <div class="flex items-center gap-2.5 pb-4 mb-4 border-b border-slate-700">
+        <div class="p-2 bg-red-500/10 text-red-400 rounded-lg">
+          <i data-lucide="play-circle" class="w-5 h-5"></i>
         </div>
-
-        <form id="startStopForm" class="space-y-4" onsubmit="handleStartDowntime(event)">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <!-- Seleção de Máquina -->
-            <div>
-              <label for="machineSelect" class="block text-xs font-medium text-slate-300 mb-1.5">
-                Selecione a Máquina <span class="text-red-400">*</span>
-              </label>
-              <div class="relative">
-                <select id="machineSelect" required
-                  class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-colors appearance-none">
-                  <option value="" disabled selected>Escolha uma máquina...</option>
-                  <option value="EPSON">EPSON</option>
-                  <option value="VANGUARD">VANGUARD</option>
-                  <option value="AGFA">AGFA</option>
-                  <option value="P5">P5</option>
-                  <option value="LIYU">LIYU</option>
-                </select>
-                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
-                  <i data-lucide="chevron-down" class="w-4 h-4"></i>
-                </div>
-              </div>
-            </div>
-
-            <!-- Seleção do Motivo -->
-            <div>
-              <label for="reasonSelect" class="block text-xs font-medium text-slate-300 mb-1.5">
-                Motivo da Parada <span class="text-red-400">*</span>
-              </label>
-              <div class="relative">
-                <select id="reasonSelect" required
-                  class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-colors appearance-none">
-                  <option value="" disabled selected>Escolha o motivo...</option>
-                  <option value="Troca de material">Troca de material</option>
-                  <option value="Preparação ou troca de serviço">Preparação ou troca de serviço</option>
-                  <option value="Limpeza da máquina">Limpeza da máquina</option>
-                  <option value="Impressão de teste">Impressão de teste</option>
-                  <option value="Falta de tinta ou material">Falta de tinta ou material</option>
-                  <option value="Aguardando arquivo ou aprovação">Aguardando arquivo ou aprovação</option>
-                  <option value="Falha técnica ou alarme">Falha técnica ou alarme</option>
-                  <option value="Manutenção programada">Manutenção programada</option>
-                  <option value="Crash da máquina">Crash da máquina</option>
-                  <option value="Colocar/retirar skins">Colocar/retirar skins</option>
-                </select>
-                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
-                  <i data-lucide="chevron-down" class="w-4 h-4"></i>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Observação -->
-          <div>
-            <label for="observationInput" class="block text-xs font-medium text-slate-300 mb-1.5">
-              Observação <span class="text-slate-500 font-normal">(Opcional)</span>
-            </label>
-            <textarea id="observationInput" rows="3"
-              placeholder="Ex: Aguardando técnico porque a cabeça de impressão apresentou falha."
-              class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition-colors resize-none placeholder:text-slate-600"></textarea>
-          </div>
-
-          <!-- Botão Submeter -->
-          <div class="flex justify-end pt-2">
-            <button type="submit" id="btnStartDowntime"
-              class="w-full sm:w-auto px-6 py-2.5 bg-red-600 hover:bg-red-500 active:bg-red-700 text-white font-semibold text-sm rounded-lg shadow-md transition-all flex items-center justify-center gap-2">
-              <i data-lucide="power" class="w-4 h-4"></i>
-              Iniciar Parada
-            </button>
-          </div>
-        </form>
+        <div>
+          <h3 class="font-bold text-slate-100 text-base">Registrar Nova Parada</h3>
+          <p class="text-xs text-slate-400">Selecione a máquina e o motivo para iniciar o cronômetro</p>
+        </div>
       </div>
 
-      <!-- Guia / Informações Rápidas -->
-      <div class="bg-industrial-800/60 border border-slate-700/60 rounded-xl p-5 flex flex-col justify-between">
+      <form id="startStopForm" class="space-y-4" onsubmit="handleStartDowntime(event)">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">Selecione a Máquina *</label>
+            <select id="machineSelect" required
+              class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-sky-500">
+              <option value="" disabled selected>Escolha uma máquina...</option>
+              <option value="EPSON">EPSON</option>
+              <option value="VANGUARD">VANGUARD</option>
+              <option value="AGFA">AGFA</option>
+              <option value="P5">P5</option>
+              <option value="LIYU">LIYU</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">Motivo da Parada *</label>
+            <select id="reasonSelect" required
+              class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-sky-500">
+              <option value="" disabled selected>Escolha o motivo...</option>
+              <option value="Troca de material">Troca de material</option>
+              <option value="Preparação ou troca de serviço">Preparação ou troca de serviço</option>
+              <option value="Limpeza da máquina">Limpeza da máquina</option>
+              <option value="Impressão de teste">Impressão de teste</option>
+              <option value="Falta de tinta ou material">Falta de tinta ou material</option>
+              <option value="Aguardando arquivo ou aprovação">Aguardando arquivo ou aprovação</option>
+              <option value="Falha técnica ou alarme">Falha técnica ou alarme</option>
+              <option value="Manutenção programada">Manutenção programada</option>
+              <option value="Crash da máquina">Crash da máquina</option>
+              <option value="Colocar/retirar skins">Colocar/retirar skins</option>
+            </select>
+          </div>
+        </div>
         <div>
-          <h3 class="font-bold text-slate-200 text-sm mb-3 flex items-center gap-2">
-            <i data-lucide="share-2" class="w-4 h-4 text-sky-400"></i>
-            Sincronização Nuvem Global
-          </h3>
-          <ul class="space-y-2.5 text-xs text-slate-300">
-            <li class="flex items-start gap-2">
-              <span class="text-sky-400 font-bold">•</span>
-              <span><strong>Acesso Compartilhado:</strong> Copie o link desta página e envie para a equipe. Qualquer alteração em um celular é vista por todos instantaneamente.</span>
-            </li>
-            <li class="flex items-start gap-2">
-              <span class="text-sky-400 font-bold">•</span>
-              <span><strong>Cronômetro Persistente:</strong> O tempo decorrido utiliza carimbo de data/hora oficial do servidor.</span>
-            </li>
-            <li class="flex items-start gap-2">
-              <span class="text-sky-400 font-bold">•</span>
-              <span><strong>Sem Login:</strong> Zero barreiras de entrada no chão de fábrica.</span>
-            </li>
-          </ul>
+          <label class="block text-xs font-medium text-slate-300 mb-1.5">Observação (Opcional)</label>
+          <textarea id="observationInput" rows="2" placeholder="Detalhes adicionais..."
+            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-500 resize-none"></textarea>
         </div>
-        <div class="mt-4 pt-3 border-t border-slate-700/50 text-[11px] text-slate-400 flex items-center justify-between">
-          <span>Servidor Firebase: Ativo</span>
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        </div>
-      </div>
-    </section>
-
-    <!-- SEÇÃO: HISTÓRICO DE PARADAS -->
-    <section class="bg-industrial-800 border border-slate-700/70 rounded-xl p-5 shadow-md space-y-4">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-700/60">
-        <div>
-          <h3 class="font-bold text-slate-100 text-base flex items-center gap-2">
-            <i data-lucide="history" class="w-5 h-5 text-sky-400"></i>
-            Histórico de Paradas
-          </h3>
-          <p class="text-xs text-slate-400">Registros em tempo real salvos na nuvem</p>
-        </div>
-
-        <div class="flex items-center gap-2">
-          <button onclick="exportToCSV()" 
-            class="px-3.5 py-1.5 bg-slate-700 hover:bg-slate-600 active:bg-slate-800 text-slate-200 border border-slate-600 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 shadow-sm">
-            <i data-lucide="download" class="w-3.5 h-3.5"></i>
-            Exportar CSV
+        <div class="flex justify-end">
+          <button type="submit"
+            class="w-full sm:w-auto px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white font-semibold text-sm rounded-lg shadow transition-all flex items-center justify-center gap-2">
+            <i data-lucide="power" class="w-4 h-4"></i> Iniciar Parada
           </button>
         </div>
-      </div>
-
-      <!-- Filtros -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <!-- Filtro por Máquina -->
-        <div>
-          <label class="block text-[11px] font-medium text-slate-400 mb-1">Filtrar por Máquina</label>
-          <select id="filterMachine" onchange="renderHistory()" 
-            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500">
-            <option value="ALL">Todas as máquinas</option>
-            <option value="EPSON">EPSON</option>
-            <option value="VANGUARD">VANGUARD</option>
-            <option value="AGFA">AGFA</option>
-            <option value="P5">P5</option>
-            <option value="LIYU">LIYU</option>
-          </select>
-        </div>
-
-        <!-- Busca por texto -->
-        <div>
-          <label class="block text-[11px] font-medium text-slate-400 mb-1">Buscar por Motivo ou Observação</label>
-          <div class="relative">
-            <input type="text" id="filterSearch" oninput="renderHistory()" placeholder="Digite para buscar..."
-              class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500 placeholder:text-slate-600">
-            <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5"></i>
-          </div>
-        </div>
-
-        <!-- Filtro por Status -->
-        <div>
-          <label class="block text-[11px] font-medium text-slate-400 mb-1">Status da Parada</label>
-          <select id="filterStatus" onchange="renderHistory()" 
-            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-sky-500">
-            <option value="ALL">Todos os status</option>
-            <option value="ACTIVE">Apenas Ativas</option>
-            <option value="CLOSED">Apenas Encerradas</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Tabela para Desktop -->
-      <div class="hidden md:block overflow-x-auto rounded-lg border border-slate-700/60">
-        <table class="w-full text-left text-xs text-slate-300">
-          <thead class="bg-slate-900/90 text-slate-400 font-semibold uppercase tracking-wider border-b border-slate-700/60">
-            <tr>
-              <th class="p-3">Máquina</th>
-              <th class="p-3">Motivo</th>
-              <th class="p-3">Início</th>
-              <th class="p-3">Fim</th>
-              <th class="p-3">Duração</th>
-              <th class="p-3">Observação</th>
-              <th class="p-3 text-right">Status</th>
-            </tr>
-          </thead>
-          <tbody id="historyTableBody" class="divide-y divide-slate-700/50 bg-slate-900/30">
-            <!-- Renderizado dinamicamente via JS -->
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Lista Card para Celulares -->
-      <div id="historyMobileList" class="block md:hidden space-y-2.5">
-        <!-- Renderizado dinamicamente via JS -->
-      </div>
-
-      <!-- Mensagem quando não houver histórico -->
-      <div id="noHistoryMessage" class="hidden text-center py-8 text-slate-500 text-xs">
-        Nenhum registro encontrado no histórico.
-      </div>
+      </form>
     </section>
 
-  </main>
-
-  <!-- MODAL DE CONFIGURAÇÕES NUVEM / FIREBASE -->
-  <div id="configModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden">
-    <div class="bg-industrial-800 border border-slate-700 rounded-xl p-6 max-w-md w-full shadow-2xl space-y-4">
-      <div class="flex items-center justify-between border-b border-slate-700 pb-3">
-        <div class="flex items-center gap-2">
-          <i data-lucide="cloud" class="w-5 h-5 text-sky-400"></i>
-          <h3 class="font-bold text-slate-100 text-base">Configuração do Firebase Nuvem</h3>
-        </div>
-        <button onclick="closeConfigModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
-      </div>
-
-      <p class="text-xs text-slate-300">
-        O sistema já está utilizando um banco de dados em tempo real compartilhado. Se deseja conectar ao seu próprio projeto Firebase, cole suas credenciais JSON abaixo:
-      </p>
-
-      <div>
-        <label class="block text-xs font-medium text-slate-300 mb-1">Firebase Config JSON:</label>
-        <textarea id="firebaseConfigInput" rows="6" placeholder='{
-  "apiKey": "AIzaSy...",
-  "authDomain": "seu-app.firebaseapp.com",
-  "projectId": "seu-app",
-  "storageBucket": "seu-app.appspot.com",
-  "messagingSenderId": "123...",
-  "appId": "1:123..."
-}' class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs font-mono text-slate-200 focus:outline-none focus:border-sky-500 resize-none"></textarea>
-      </div>
-
-      <div class="flex items-center justify-between pt-2">
-        <button onclick="resetDefaultConfig()" class="text-xs text-slate-400 hover:text-sky-400 underline">Restaurar Padrão</button>
-        <div class="flex gap-2">
-          <button onclick="closeConfigModal()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-xs text-slate-200 rounded-lg">Cancelar</button>
-          <button onclick="saveCustomConfig()" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-xs font-semibold text-white rounded-lg shadow">Salvar e Conectar</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL / NOTIFICAÇÃO PERSONALIZADA -->
-  <div id="customModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden">
-    <div class="bg-industrial-800 border border-slate-700 rounded-xl p-5 max-w-sm w-full shadow-xl space-y-4">
-      <div class="flex items-center gap-3">
-        <div id="modalIconContainer" class="p-2 rounded-lg bg-red-500/10 text-red-400">
-          <i id="modalIcon" data-lucide="alert-circle" class="w-5 h-5"></i>
-        </div>
-        <div>
-          <h4 id="modalTitle" class="font-bold text-slate-100 text-sm">Atenção</h4>
-          <p id="modalMessage" class="text-xs text-slate-300 mt-0.5">Mensagem do sistema.</p>
-        </div>
-      </div>
-      <div class="flex justify-end pt-2">
-        <button onclick="closeModal()" class="px-4 py-1.5 bg-slate-700 hover:bg-slate-600 text-xs font-semibold text-slate-100 rounded-lg transition-colors">
-          Entendi
+    <!-- HISTÓRICO -->
+    <section class="bg-industrial-800 border border-slate-700 rounded-xl p-5 shadow-md space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-700">
+        <h3 class="font-bold text-slate-100 text-base flex items-center gap-2">
+          <i data-lucide="history" class="w-5 h-5 text-sky-400"></i> Histórico de Paradas
+        </h3>
+        <button onclick="exportToCSV()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-xs font-medium flex items-center gap-1">
+          <i data-lucide="download" class="w-3.5 h-3.5"></i> Exportar CSV
         </button>
       </div>
-    </div>
-  </div>
 
-  <!-- Rodapé -->
-  <footer class="mt-auto border-t border-slate-800 bg-industrial-900 py-4 text-center text-xs text-slate-500">
-    <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
-      <span>Sistema de Gestão de Paradas &bull; Sincronização Nuvem Multi-Dispositivo</span>
-      <span class="text-slate-600">5 Máquinas &bull; 10 Motivos de Parada</span>
-    </div>
-  </footer>
+      <div id="historyList" class="space-y-2.5">
+        <!-- Renderizado dinamicamente -->
+      </div>
+    </section>
+  </main>
 
-  <!-- SCRIPT FIREBASE E LÓGICA DO APP -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { 
-      getAuth, 
-      signInAnonymously, 
-      signInWithCustomToken 
-    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { 
-      getFirestore, 
-      collection, 
-      doc, 
-      setDoc, 
-      updateDoc, 
-      onSnapshot, 
-      addDoc 
-    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'paradas-maquinas-prod';
-
-    function getFirebaseConfig() {
-      const savedConfig = localStorage.getItem('custom_firebase_config');
-      if (savedConfig) {
-        try { return JSON.parse(savedConfig); } catch (e) {}
-      }
-      return {
-        apiKey: "AIzaSyDemoKeyForPublicTestingOnly12345",
-        authDomain: "downtime-monitor-demo.firebaseapp.com",
-        projectId: "downtime-monitor-demo",
-        storageBucket: "downtime-monitor-demo.appspot.com",
-        messagingSenderId: "123456789012",
-        appId: "1:123456789012:web:abcdef1234567890"
-      };
-    }
-
-    let app, auth, db;
-    try {
-      const config = getFirebaseConfig();
-      app = initializeApp(config);
-      auth = getAuth(app);
-      db = getFirestore(app);
-    } catch(err) {
-      console.error("Erro na inicialização do Firebase:", err);
-    }
-
+  <!-- SCRIPT -->
+  <script>
     const MACHINES = ["EPSON", "VANGUARD", "AGFA", "P5", "LIYU"];
+    let activeDowntimes = JSON.parse(localStorage.getItem('downtime_active') || '{}');
+    let historyRecords = JSON.parse(localStorage.getItem('downtime_history') || '[]');
 
-    let activeDowntimes = {}; 
-    let historyRecords = [];  
-    let timerInterval = null;
-
-    const machinesGrid = document.getElementById('machinesGrid');
-    const machineSelect = document.getElementById('machineSelect');
-    const historyTableBody = document.getElementById('historyTableBody');
-    const historyMobileList = document.getElementById('historyMobileList');
-    const noHistoryMessage = document.getElementById('noHistoryMessage');
-
-    async function initAuth() {
-      try {
-        await signInAnonymously(auth);
-      } catch (err) {
-        console.warn("Modo anônimo:", err);
-      }
+    function saveData() {
+      localStorage.setItem('downtime_active', JSON.stringify(activeDowntimes));
+      localStorage.setItem('downtime_history', JSON.stringify(historyRecords));
     }
 
-    function setupRealtimeListeners() {
-      if (!db) return;
+    function renderUI() {
+      const grid = document.getElementById('machinesGrid');
+      grid.innerHTML = '';
 
-      const statusColRef = collection(db, 'artifacts', appId, 'public', 'data', 'machine_status');
-      onSnapshot(statusColRef, (snapshot) => {
-        activeDowntimes = {};
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          if (data && data.isStopped) {
-            activeDowntimes[doc.id] = data;
-          }
-        });
-        updateDashboardUI();
-        updateMachineDropdown();
-        updateStats();
-      });
-
-      const historyColRef = collection(db, 'artifacts', appId, 'public', 'data', 'downtime_history');
-      onSnapshot(historyColRef, (snapshot) => {
-        historyRecords = [];
-        snapshot.forEach((doc) => {
-          historyRecords.push({ id: doc.id, ...doc.data() });
-        });
-        historyRecords.sort((a, b) => (b.startTimestamp || 0) - (a.startTimestamp || 0));
-        renderHistory();
-        updateStats();
-      });
-    }
-
-    function updateDashboardUI() {
-      machinesGrid.innerHTML = '';
-
-      MACHINES.forEach((machineName) => {
-        const downtime = activeDowntimes[machineName];
-        const isStopped = !!downtime;
+      MACHINES.forEach(mach => {
+        const active = activeDowntimes[mach];
+        const isStopped = !!active;
 
         const card = document.createElement('div');
-        card.className = `rounded-xl border p-4 shadow-sm transition-all flex flex-col justify-between relative overflow-hidden ${
-          isStopped 
-            ? 'bg-red-950/20 border-red-500/60 animate-pulse-subtle' 
-            : 'bg-industrial-800 border-slate-700/80 hover:border-slate-600'
+        card.className = `rounded-xl border p-4 shadow-sm flex flex-col justify-between ${
+          isStopped ? 'bg-red-950/30 border-red-500/80 animate-pulse' : 'bg-industrial-800 border-slate-700'
         }`;
 
-        let cardHTML = `
-          <div>
-            <div class="flex items-center justify-between border-b border-slate-700/50 pb-2.5 mb-3">
-              <div class="flex items-center gap-2">
-                <i data-lucide="printer" class="w-4 h-4 ${isStopped ? 'text-red-400' : 'text-emerald-400'}"></i>
-                <h3 class="font-bold text-base text-white tracking-wide">${machineName}</h3>
-              </div>
-              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
-                isStopped 
-                  ? 'bg-red-500/10 text-red-400 border-red-500/30' 
-                  : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+        let html = `
+          <div class="space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-700/60 pb-2">
+              <h3 class="font-bold text-white text-base">${mach}</h3>
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                isStopped ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
               }">
                 ${isStopped ? 'EM PARADA' : 'OPERACIONAL'}
               </span>
@@ -552,369 +204,160 @@
         `;
 
         if (isStopped) {
-          cardHTML += `
-            <div class="space-y-2 mb-4">
-              <div>
-                <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">Motivo:</span>
-                <span class="text-sm font-semibold text-red-300">${escapeHTML(downtime.reason)}</span>
-              </div>
-              ${downtime.observation ? `
-                <div>
-                  <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">Observação:</span>
-                  <p class="text-xs text-slate-300 italic bg-slate-900/60 p-2 rounded border border-slate-800/80 break-words">${escapeHTML(downtime.observation)}</p>
-                </div>
-              ` : ''}
-              <div>
-                <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 block">Início da Parada:</span>
-                <span class="text-xs text-slate-300">${formatDateTime(downtime.startTimestamp)}</span>
-              </div>
+          html += `
+            <div class="space-y-1 text-xs">
+              <p><strong class="text-slate-400">Motivo:</strong> ${active.reason}</p>
+              ${active.observation ? `<p><strong class="text-slate-400">Obs:</strong> ${active.observation}</p>` : ''}
+              <p><strong class="text-slate-400">Início:</strong> ${new Date(active.startTimestamp).toLocaleTimeString()}</p>
               
-              <!-- CRONÔMETRO AO VIVO -->
-              <div class="bg-slate-900/90 border border-red-500/40 rounded-lg p-3 mt-3 text-center shadow-inner">
-                <span class="text-[10px] text-slate-400 font-mono block uppercase tracking-wider">Tempo Decorrido</span>
-                <div class="text-2xl sm:text-3xl font-black font-mono text-red-400 tracking-wider timer-display" data-start="${downtime.startTimestamp}">
-                  00:00:00
-                </div>
+              <div class="bg-slate-900/90 border border-red-500/50 rounded-lg p-3 text-center mt-2">
+                <span class="text-[10px] text-slate-400 block uppercase">Tempo Decorrido</span>
+                <div class="text-2xl font-mono font-bold text-red-400 timer-display" data-start="${active.startTimestamp}">00:00:00</div>
               </div>
             </div>
 
-            <!-- BOTÃO DE ENCERRAMENTO GARANTIDO -->
-            <button onclick="handleEndDowntime('${machineName}')"
-              class="w-full mt-2 py-3 px-3 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer">
-              <i data-lucide="check-circle" class="w-5 h-5"></i>
-              FINALIZAR / ENCERRAR PARADA
+            <button onclick="handleEndDowntime('${mach}')"
+              class="w-full mt-3 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg shadow flex items-center justify-center gap-2 cursor-pointer">
+              <i data-lucide="check-circle" class="w-4 h-4"></i> FINALIZAR / ENCERRAR PARADA
             </button>
           `;
         } else {
-          cardHTML += `
-            <div class="py-6 text-center space-y-1">
-              <i data-lucide="check-circle-2" class="w-8 h-8 text-emerald-500/40 mx-auto"></i>
-              <p class="text-xs text-slate-400">Máquina em plena produção</p>
-            </div>
-            <div class="text-center pt-2 border-t border-slate-700/40 text-[11px] text-slate-500">
-              Pronta para operar
+          html += `
+            <div class="py-6 text-center text-slate-400 text-xs">
+              <i data-lucide="check-circle-2" class="w-6 h-6 text-emerald-500/50 mx-auto mb-1"></i>
+              Máquina em plena produção
             </div>
           `;
         }
 
-        cardHTML += `</div>`;
-        card.innerHTML = cardHTML;
-        machinesGrid.appendChild(card);
+        html += `</div>`;
+        card.innerHTML = html;
+        grid.appendChild(card);
       });
 
+      // Atualiza dropdown
+      const sel = document.getElementById('machineSelect');
+      for (let opt of sel.options) {
+        if (opt.value) {
+          opt.disabled = !!activeDowntimes[opt.value];
+          opt.text = opt.disabled ? `${opt.value} (EM PARADA)` : opt.value;
+        }
+      }
+
+      renderHistory();
+      updateStats();
       lucide.createIcons();
-      updateTimers();
     }
 
-    function updateMachineDropdown() {
-      const options = machineSelect.options;
-      for (let i = 0; i < options.length; i++) {
-        const val = options[i].value;
-        if (val) {
-          const isStopped = !!activeDowntimes[val];
-          options[i].disabled = isStopped;
-          options[i].text = isStopped ? `${val} (EM PARADA)` : val;
-        }
-      }
-    }
+    function renderHistory() {
+      const list = document.getElementById('historyList');
+      list.innerHTML = '';
 
-    function updateTimers() {
-      const displays = document.querySelectorAll('.timer-display');
-      const now = Date.now();
-
-      displays.forEach((display) => {
-        const startTimestamp = parseInt(display.getAttribute('data-start'), 10);
-        if (startTimestamp) {
-          const elapsedMs = Math.max(0, now - startTimestamp);
-          display.textContent = formatDurationMs(elapsedMs);
-        }
-      });
-    }
-
-    window.renderHistory = function() {
-      const machineFilter = document.getElementById('filterMachine').value;
-      const searchFilter = document.getElementById('filterSearch').value.toLowerCase().trim();
-      const statusFilter = document.getElementById('filterStatus').value;
-
-      const filtered = historyRecords.filter(item => {
-        if (machineFilter !== 'ALL' && item.machine !== machineFilter) return false;
-        if (statusFilter === 'ACTIVE' && !item.isActive) return false;
-        if (statusFilter === 'CLOSED' && item.isActive) return false;
-
-        if (searchFilter) {
-          const reasonStr = (item.reason || '').toLowerCase();
-          const obsStr = (item.observation || '').toLowerCase();
-          const machineStr = (item.machine || '').toLowerCase();
-          if (!reasonStr.includes(searchFilter) && !obsStr.includes(searchFilter) && !machineStr.includes(searchFilter)) {
-            return false;
-          }
-        }
-        return true;
-      });
-
-      historyTableBody.innerHTML = '';
-      historyMobileList.innerHTML = '';
-
-      if (filtered.length === 0) {
-        noHistoryMessage.classList.remove('hidden');
+      if (historyRecords.length === 0) {
+        list.innerHTML = '<p class="text-xs text-slate-500 text-center py-4">Nenhum registo no histórico.</p>';
         return;
-      } else {
-        noHistoryMessage.classList.add('hidden');
       }
 
-      filtered.forEach((rec) => {
+      historyRecords.forEach(rec => {
         const isRunning = rec.isActive;
-        const durationText = isRunning 
-          ? 'Em andamento...' 
-          : formatDurationMs(rec.endTimestamp - rec.startTimestamp);
+        const duration = isRunning ? 'Em andamento...' : formatDuration(rec.endTimestamp - rec.startTimestamp);
 
-        const tr = document.createElement('tr');
-        tr.className = 'hover:bg-slate-800/50 transition-colors';
-        tr.innerHTML = `
-          <td class="p-3 font-semibold text-slate-100">${escapeHTML(rec.machine)}</td>
-          <td class="p-3 text-slate-300">${escapeHTML(rec.reason)}</td>
-          <td class="p-3 whitespace-nowrap text-slate-400">${formatDateTime(rec.startTimestamp)}</td>
-          <td class="p-3 whitespace-nowrap text-slate-400">${rec.endTimestamp ? formatDateTime(rec.endTimestamp) : '-'}</td>
-          <td class="p-3 font-mono text-slate-200">${durationText}</td>
-          <td class="p-3 text-slate-300 max-w-xs truncate" title="${escapeHTML(rec.observation || '')}">
-            ${rec.observation ? escapeHTML(rec.observation) : '<span class="text-slate-600 italic">-</span>'}
-          </td>
-          <td class="p-3 text-right">
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${
-              isRunning ? 'bg-red-500/10 text-red-400 border border-red-500/30' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-            }">
-              ${isRunning ? 'ATIVA' : 'ENCERRADA'}
-            </span>
-          </td>
-        `;
-        historyTableBody.appendChild(tr);
-
-        const mCard = document.createElement('div');
-        mCard.className = 'bg-slate-900/90 border border-slate-700/60 rounded-lg p-3.5 space-y-2';
-        mCard.innerHTML = `
-          <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-            <span class="font-bold text-sm text-white">${escapeHTML(rec.machine)}</span>
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${
-              isRunning ? 'bg-red-500/10 text-red-400' : 'bg-emerald-500/10 text-emerald-400'
-            }">
-              ${isRunning ? 'ATIVA' : 'ENCERRADA'}
-            </span>
+        const item = document.createElement('div');
+        item.className = 'bg-slate-900/80 border border-slate-700/70 rounded-lg p-3 text-xs space-y-1';
+        item.innerHTML = `
+          <div class="flex justify-between font-bold text-white">
+            <span>${rec.machine} - ${rec.reason}</span>
+            <span class="${isRunning ? 'text-red-400' : 'text-emerald-400'}">${isRunning ? 'ATIVA' : 'ENCERRADA'}</span>
           </div>
-          <div class="text-xs text-slate-300 space-y-1">
-            <p><strong class="text-slate-400">Motivo:</strong> ${escapeHTML(rec.reason)}</p>
-            <p><strong class="text-slate-400">Início:</strong> ${formatDateTime(rec.startTimestamp)}</p>
-            ${rec.endTimestamp ? `<p><strong class="text-slate-400">Fim:</strong> ${formatDateTime(rec.endTimestamp)}</p>` : ''}
-            <p><strong class="text-slate-400">Duração:</strong> <span class="font-mono text-sky-400">${durationText}</span></p>
-            ${rec.observation ? `<p class="mt-1 pt-1 border-t border-slate-800 text-slate-400 italic">"${escapeHTML(rec.observation)}"</p>` : ''}
-          </div>
+          <p class="text-slate-400">Início: ${new Date(rec.startTimestamp).toLocaleString()}</p>
+          <p class="text-sky-400 font-mono">Duração: ${duration}</p>
+          ${rec.observation ? `<p class="italic text-slate-300">"${rec.observation}"</p>` : ''}
         `;
-        historyMobileList.appendChild(mCard);
+        list.appendChild(item);
       });
-    };
+    }
 
-    window.handleStartDowntime = async function(e) {
+    window.handleStartDowntime = function(e) {
       e.preventDefault();
-      
       const machine = document.getElementById('machineSelect').value;
       const reason = document.getElementById('reasonSelect').value;
       const observation = document.getElementById('observationInput').value.trim();
 
-      if (!machine || !reason) {
-        showModal('Campo Obrigatório', 'Selecione a máquina e o motivo da parada.');
-        return;
-      }
-
-      if (activeDowntimes[machine]) {
-        showModal('Aviso', `A máquina ${machine} já está parada no sistema!`);
-        return;
-      }
+      if (!machine || !reason) return;
 
       const startTimestamp = Date.now();
+      const record = { machine, reason, observation, startTimestamp, endTimestamp: null, isActive: true };
 
-      try {
-        const historyColRef = collection(db, 'artifacts', appId, 'public', 'data', 'downtime_history');
-        const historyDoc = await addDoc(historyColRef, {
-          machine,
-          reason,
-          observation,
-          startTimestamp,
-          endTimestamp: null,
-          isActive: true,
-          createdAt: new Date().toISOString()
-        });
+      activeDowntimes[machine] = record;
+      historyRecords.unshift(record);
 
-        const statusDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'machine_status', machine);
-        await setDoc(statusDocRef, {
-          machine,
-          isStopped: true,
-          reason,
-          observation,
-          startTimestamp,
-          historyId: historyDoc.id,
-          updatedAt: new Date().toISOString()
-        });
-
-        document.getElementById('startStopForm').reset();
-        showToast(`Parada iniciada para ${machine}`, "emerald");
-
-      } catch (err) {
-        console.error("Erro ao gravar parada na nuvem:", err);
-        showModal('Erro de Conexão', 'Não foi possível salvar na nuvem.');
-      }
+      saveData();
+      document.getElementById('startStopForm').reset();
+      renderUI();
     };
 
-    window.handleEndDowntime = async function(machineName) {
-      const downtime = activeDowntimes[machineName];
-      if (!downtime) return;
+    window.handleEndDowntime = function(machineName) {
+      const active = activeDowntimes[machineName];
+      if (!active) return;
 
       const endTimestamp = Date.now();
+      active.endTimestamp = endTimestamp;
+      active.isActive = false;
 
-      try {
-        if (downtime.historyId) {
-          const historyDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'downtime_history', downtime.historyId);
-          await updateDoc(historyDocRef, {
-            endTimestamp,
-            isActive: false,
-            durationMs: endTimestamp - downtime.startTimestamp
-          });
-        }
-
-        const statusDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'machine_status', machineName);
-        await setDoc(statusDocRef, {
-          machine: machineName,
-          isStopped: false,
-          updatedAt: new Date().toISOString()
-        });
-
-        showToast(`Máquina ${machineName} liberada!`, "emerald");
-
-      } catch (err) {
-        console.error("Erro ao encerrar parada:", err);
-        showModal('Erro', 'Falha ao encerrar na nuvem. Tente novamente.');
-      }
-    };
-
-    window.exportToCSV = function() {
-      if (historyRecords.length === 0) {
-        showModal('Exportação', 'Nenhum histórico gravado para exportação.');
-        return;
+      // Atualiza também no histórico
+      const hist = historyRecords.find(r => r.machine === machineName && r.isActive);
+      if (hist) {
+        hist.endTimestamp = endTimestamp;
+        hist.isActive = false;
       }
 
-      let csv = 'Maquina;Motivo;Inicio;Fim;Duracao_Segundos;Status;Observacao\n';
-
-      historyRecords.forEach(item => {
-        const startStr = formatDateTime(item.startTimestamp);
-        const endStr = item.endTimestamp ? formatDateTime(item.endTimestamp) : '';
-        const durSec = item.endTimestamp ? Math.floor((item.endTimestamp - item.startTimestamp) / 1000) : '';
-        const status = item.isActive ? 'ATIVA' : 'ENCERRADA';
-        const obs = (item.observation || '').replace(/;/g, ',').replace(/\n/g, ' ');
-
-        csv += `"${item.machine}";"${item.reason}";"${startStr}";"${endStr}";"${durSec}";"${status}";"${obs}"\n`;
-      });
-
-      const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `Historico_Paradas_${new Date().toISOString().slice(0,10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      delete activeDowntimes[machineName];
+      saveData();
+      renderUI();
     };
 
     function updateStats() {
       const activeCount = Object.keys(activeDowntimes).length;
-      const operatingCount = MACHINES.length - activeCount;
-
-      document.getElementById('statOperating').textContent = operatingCount;
+      document.getElementById('statOperating').textContent = MACHINES.length - activeCount;
       document.getElementById('statStopped').textContent = activeCount;
 
-      const todayStart = new Date();
-      todayStart.setHours(0,0,0,0);
-      const todayTimestamp = todayStart.getTime();
-
-      const todayCount = historyRecords.filter(r => r.startTimestamp >= todayTimestamp).length;
+      const todayStart = new Date().setHours(0,0,0,0);
+      const todayCount = historyRecords.filter(r => r.startTimestamp >= todayStart).length;
       document.getElementById('statTodayCount').textContent = todayCount;
     }
 
-    window.showModal = function(title, message, iconName = 'alert-circle', color = 'red') {
-      document.getElementById('modalTitle').textContent = title;
-      document.getElementById('modalMessage').textContent = message;
-      document.getElementById('customModal').classList.remove('hidden');
-    };
-
-    window.closeModal = function() {
-      document.getElementById('customModal').classList.add('hidden');
-    };
-
-    function showToast(message, color = "sky") {
-      const container = document.getElementById('toastContainer');
-      const toast = document.createElement('div');
-      toast.className = `p-3 rounded-lg shadow-xl border text-xs font-medium text-white flex items-center justify-between gap-2 transition-all transform translate-y-2 opacity-0 bg-slate-800 border-slate-700 pointer-events-auto`;
-      let borderAccent = color === 'emerald' ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-sky-500';
-      toast.className += ' ' + borderAccent;
-      toast.innerHTML = `<div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full ${color === 'emerald' ? 'bg-emerald-400' : 'bg-sky-400'}"></span><span>${escapeHTML(message)}</span></div>`;
-      container.appendChild(toast);
-      setTimeout(() => toast.classList.remove('translate-y-2', 'opacity-0'), 10);
-      setTimeout(() => {
-        toast.classList.add('opacity-0');
-        setTimeout(() => toast.remove(), 300);
-      }, 3000);
+    function updateTimers() {
+      document.querySelectorAll('.timer-display').forEach(el => {
+        const start = parseInt(el.getAttribute('data-start'), 10);
+        const diff = Date.now() - start;
+        el.textContent = formatDuration(diff);
+      });
     }
 
-    window.openConfigModal = function() {
-      const current = getFirebaseConfig();
-      document.getElementById('firebaseConfigInput').value = JSON.stringify(current, null, 2);
-      document.getElementById('configModal').classList.remove('hidden');
-    };
-
-    window.closeConfigModal = function() {
-      document.getElementById('configModal').classList.add('hidden');
-    };
-
-    window.saveCustomConfig = function() {
-      const val = document.getElementById('firebaseConfigInput').value.trim();
-      try {
-        const parsed = JSON.parse(val);
-        localStorage.setItem('custom_firebase_config', JSON.stringify(parsed));
-        showToast("Configurações salvas. Recarregando...", "emerald");
-        setTimeout(() => window.location.reload(), 1000);
-      } catch (err) {
-        showModal('JSON Inválido', 'Certifique-se de colar um objeto JSON válido.');
-      }
-    };
-
-    window.resetDefaultConfig = function() {
-      localStorage.removeItem('custom_firebase_config');
-      showToast("Configuração restaurada.", "sky");
-      setTimeout(() => window.location.reload(), 800);
-    };
-
-    function formatDateTime(ts) {
-      if (!ts) return '-';
-      const d = new Date(ts);
-      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    function formatDuration(ms) {
+      const secs = Math.floor(ms / 1000);
+      const h = String(Math.floor(secs / 3600)).padStart(2, '0');
+      const m = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
+      const s = String(secs % 60).padStart(2, '0');
+      return `${h}:${m}:${s}`;
     }
 
-    function formatDurationMs(ms) {
-      const totalSeconds = Math.floor(ms / 1000);
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
-      const pad = (n) => String(n).padStart(2, '0');
-      return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
-    }
+    window.exportToCSV = function() {
+      if (historyRecords.length === 0) return;
+      let csv = 'Maquina;Motivo;Inicio;Fim;Status;Observacao\n';
+      historyRecords.forEach(r => {
+        csv += `"${r.machine}";"${r.reason}";"${new Date(r.startTimestamp).toLocaleString()}";"${r.endTimestamp ? new Date(r.endTimestamp).toLocaleString() : ''}";"${r.isActive ? 'ATIVA' : 'ENCERRADA'}";"${r.observation || ''}"\n`;
+      });
+      const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'historico_paradas.csv';
+      link.click();
+    };
 
-    function escapeHTML(str) {
-      if (!str) return '';
-      return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
-    }
-
-    window.onload = async function() {
-      await initAuth();
-      setupRealtimeListeners();
-      timerInterval = setInterval(updateTimers, 1000);
-      lucide.createIcons();
+    window.onload = function() {
+      renderUI();
+      setInterval(updateTimers, 1000);
     };
   </script>
 </body>
