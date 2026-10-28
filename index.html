@@ -98,17 +98,6 @@
     </div>
   </header>
 
-  <!-- Banner de Dica de Configuração (Caso esteja em chave genérica) -->
-  <div id="demoWarningBanner" class="bg-sky-950/60 border-b border-sky-800/50 px-4 py-2 text-xs text-sky-300 flex items-center justify-between hidden">
-    <div class="max-w-7xl mx-auto w-full flex items-center justify-between gap-2">
-      <div class="flex items-center gap-2">
-        <i data-lucide="wifi" class="w-4 h-4 text-sky-400 shrink-0"></i>
-        <span>Sincronização ativa! Para conectar os celulares da sua empresa em uma nuvem privada de custo zero, configure suas chaves do Firebase.</span>
-      </div>
-      <button onclick="openConfigModal()" class="underline font-semibold hover:text-white shrink-0">Configurar Nuvem</button>
-    </div>
-  </div>
-
   <!-- Conteúdo Principal -->
   <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
 
@@ -262,15 +251,15 @@
           <ul class="space-y-2.5 text-xs text-slate-300">
             <li class="flex items-start gap-2">
               <span class="text-sky-400 font-bold">•</span>
-              <span><strong>Acesso Compartilhado:</strong> Copie o link desta página e envie para a equipe. Qualquer alteração em um celular é vista por todos instantly.</span>
+              <span><strong>Acesso Compartilhado:</strong> Copie o link desta página e envie para a equipe. Qualquer alteração em um celular é vista por todos instantaneamente.</span>
             </li>
             <li class="flex items-start gap-2">
               <span class="text-sky-400 font-bold">•</span>
-              <span><strong>Cronômetro Persistente:</strong> O tempo decorrido utiliza carimbo de data/hora oficial do servidor, ignorando se o celular for desligado ou fechado.</span>
+              <span><strong>Cronômetro Persistente:</strong> O tempo decorrido utiliza carimbo de data/hora oficial do servidor.</span>
             </li>
             <li class="flex items-start gap-2">
               <span class="text-sky-400 font-bold">•</span>
-              <span><strong>Sem Login:</strong> Zero barreiras de entrada no chão de fábrica. Qualquer operador pode iniciar e encerrar paradas.</span>
+              <span><strong>Sem Login:</strong> Zero barreiras de entrada no chão de fábrica.</span>
             </li>
           </ul>
         </div>
@@ -384,7 +373,7 @@
       </div>
 
       <p class="text-xs text-slate-300">
-        O sistema já está utilizando um banco de dados em tempo real compartilhado. Se você deseja conectar ao seu próprio projeto Firebase (100% gratuito), cole suas credenciais JSON abaixo:
+        O sistema já está utilizando um banco de dados em tempo real compartilhado. Se deseja conectar ao seu próprio projeto Firebase, cole suas credenciais JSON abaixo:
       </p>
 
       <div>
@@ -409,7 +398,7 @@
     </div>
   </div>
 
-  <!-- MODAL / NOTIFICAÇÃO PERSONALIZADA (sem alert) -->
+  <!-- MODAL / NOTIFICAÇÃO PERSONALIZADA -->
   <div id="customModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm hidden">
     <div class="bg-industrial-800 border border-slate-700 rounded-xl p-5 max-w-sm w-full shadow-xl space-y-4">
       <div class="flex items-center gap-3">
@@ -455,27 +444,13 @@
       addDoc 
     } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    // App ID Global
     const appId = typeof __app_id !== 'undefined' ? __app_id : 'paradas-maquinas-prod';
 
-    // Recupera configuração do Firebase do localStorage ou usa valor injetado/padrão
     function getFirebaseConfig() {
       const savedConfig = localStorage.getItem('custom_firebase_config');
       if (savedConfig) {
-        try {
-          return JSON.parse(savedConfig);
-        } catch (e) {
-          console.error("Configuração personalizada inválida:", e);
-        }
+        try { return JSON.parse(savedConfig); } catch (e) {}
       }
-
-      if (typeof __firebase_config !== 'undefined' && __firebase_config) {
-        try {
-          return JSON.parse(__firebase_config);
-        } catch(e) {}
-      }
-
-      // Configuração Padrão Fallback
       return {
         apiKey: "AIzaSyDemoKeyForPublicTestingOnly12345",
         authDomain: "downtime-monitor-demo.firebaseapp.com",
@@ -486,7 +461,6 @@
       };
     }
 
-    // Inicialização do Firebase
     let app, auth, db;
     try {
       const config = getFirebaseConfig();
@@ -497,41 +471,30 @@
       console.error("Erro na inicialização do Firebase:", err);
     }
 
-    // Listas do Sistema
     const MACHINES = ["EPSON", "VANGUARD", "AGFA", "P5", "LIYU"];
 
-    // Estado da Aplicação
     let activeDowntimes = {}; 
     let historyRecords = [];  
     let timerInterval = null;
 
-    // Elementos DOM
     const machinesGrid = document.getElementById('machinesGrid');
     const machineSelect = document.getElementById('machineSelect');
     const historyTableBody = document.getElementById('historyTableBody');
     const historyMobileList = document.getElementById('historyMobileList');
     const noHistoryMessage = document.getElementById('noHistoryMessage');
 
-    // Autenticação Silenciosa sem Tela de Login
     async function initAuth() {
       try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
-        }
+        await signInAnonymously(auth);
       } catch (err) {
-        console.warn("Autenticação operando em modo anônimo fallback:", err);
+        console.warn("Modo anônimo:", err);
       }
     }
 
-    // LISTENER TEMPO REAL (onSnapshot) - Regra 1 e Regra 2 rigorosas
     function setupRealtimeListeners() {
       if (!db) return;
 
-      // 1. Escuta Status de Paradas Ativas (Disponível em tempo real para todos os celulares)
       const statusColRef = collection(db, 'artifacts', appId, 'public', 'data', 'machine_status');
-      
       onSnapshot(statusColRef, (snapshot) => {
         activeDowntimes = {};
         snapshot.forEach((doc) => {
@@ -543,33 +506,20 @@
         updateDashboardUI();
         updateMachineDropdown();
         updateStats();
-        showToast("Dados sincronizados com a nuvem", "sky");
-      }, (error) => {
-        console.error("Erro ao escutar Firestore:", error);
-        document.getElementById('statusIndicator').className = 'flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-medium';
-        document.getElementById('statusText').textContent = 'Erro de Conexão';
       });
 
-      // 2. Escuta Histórico Completo de Paradas
       const historyColRef = collection(db, 'artifacts', appId, 'public', 'data', 'downtime_history');
-      
       onSnapshot(historyColRef, (snapshot) => {
         historyRecords = [];
         snapshot.forEach((doc) => {
           historyRecords.push({ id: doc.id, ...doc.data() });
         });
-        
-        // Ordenação em memória JS (Garante funcionamento sem índices compostos)
         historyRecords.sort((a, b) => (b.startTimestamp || 0) - (a.startTimestamp || 0));
-        
         renderHistory();
         updateStats();
-      }, (error) => {
-        console.error("Erro no histórico do Firestore:", error);
       });
     }
 
-    // Renderização dos Cards das Máquinas
     function updateDashboardUI() {
       machinesGrid.innerHTML = '';
 
@@ -619,7 +569,7 @@
                 <span class="text-xs text-slate-300">${formatDateTime(downtime.startTimestamp)}</span>
               </div>
               
-              <!-- CRONÔMETRO AO VIVO (SINCRONIZADO) -->
+              <!-- CRONÔMETRO AO VIVO -->
               <div class="bg-slate-900/90 border border-red-500/40 rounded-lg p-3 mt-3 text-center shadow-inner">
                 <span class="text-[10px] text-slate-400 font-mono block uppercase tracking-wider">Tempo Decorrido</span>
                 <div class="text-2xl sm:text-3xl font-black font-mono text-red-400 tracking-wider timer-display" data-start="${downtime.startTimestamp}">
@@ -628,10 +578,11 @@
               </div>
             </div>
 
+            <!-- BOTÃO DE ENCERRAMENTO GARANTIDO -->
             <button onclick="handleEndDowntime('${machineName}')"
-              class="w-full mt-2 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold text-xs rounded-lg transition-all flex items-center justify-center gap-1.5 shadow-md">
-              <i data-lucide="check-circle" class="w-4 h-4"></i>
-              Encerrar Parada
+              class="w-full mt-2 py-3 px-3 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer">
+              <i data-lucide="check-circle" class="w-5 h-5"></i>
+              FINALIZAR / ENCERRAR PARADA
             </button>
           `;
         } else {
@@ -655,7 +606,6 @@
       updateTimers();
     }
 
-    // Atualização de Dropdown
     function updateMachineDropdown() {
       const options = machineSelect.options;
       for (let i = 0; i < options.length; i++) {
@@ -668,7 +618,6 @@
       }
     }
 
-    // Cronômetro Vivo Baseado no Timestamp do Servidor
     function updateTimers() {
       const displays = document.querySelectorAll('.timer-display');
       const now = Date.now();
@@ -682,7 +631,6 @@
       });
     }
 
-    // Renderização do Histórico
     window.renderHistory = function() {
       const machineFilter = document.getElementById('filterMachine').value;
       const searchFilter = document.getElementById('filterSearch').value.toLowerCase().trim();
@@ -701,7 +649,6 @@
             return false;
           }
         }
-
         return true;
       });
 
@@ -721,7 +668,6 @@
           ? 'Em andamento...' 
           : formatDurationMs(rec.endTimestamp - rec.startTimestamp);
 
-        // Desktop Row
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-slate-800/50 transition-colors';
         tr.innerHTML = `
@@ -735,9 +681,7 @@
           </td>
           <td class="p-3 text-right">
             <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${
-              isRunning 
-                ? 'bg-red-500/10 text-red-400 border border-red-500/30' 
-                : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+              isRunning ? 'bg-red-500/10 text-red-400 border border-red-500/30' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
             }">
               ${isRunning ? 'ATIVA' : 'ENCERRADA'}
             </span>
@@ -745,7 +689,6 @@
         `;
         historyTableBody.appendChild(tr);
 
-        // Mobile Card
         const mCard = document.createElement('div');
         mCard.className = 'bg-slate-900/90 border border-slate-700/60 rounded-lg p-3.5 space-y-2';
         mCard.innerHTML = `
@@ -769,7 +712,6 @@
       });
     };
 
-    // AÇÃO: Iniciar Parada na Nuvem
     window.handleStartDowntime = async function(e) {
       e.preventDefault();
       
@@ -790,7 +732,6 @@
       const startTimestamp = Date.now();
 
       try {
-        // 1. Grava no Histórico Global do Firestore
         const historyColRef = collection(db, 'artifacts', appId, 'public', 'data', 'downtime_history');
         const historyDoc = await addDoc(historyColRef, {
           machine,
@@ -802,7 +743,6 @@
           createdAt: new Date().toISOString()
         });
 
-        // 2. Atualiza Status em Tempo Real para todos os Dispositivos
         const statusDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'machine_status', machine);
         await setDoc(statusDocRef, {
           machine,
@@ -819,11 +759,10 @@
 
       } catch (err) {
         console.error("Erro ao gravar parada na nuvem:", err);
-        showModal('Erro de Conexão', 'Não foi possível salvar na nuvem. Verifique sua conexão.');
+        showModal('Erro de Conexão', 'Não foi possível salvar na nuvem.');
       }
     };
 
-    // AÇÃO: Encerrar Parada na Nuvem
     window.handleEndDowntime = async function(machineName) {
       const downtime = activeDowntimes[machineName];
       if (!downtime) return;
@@ -855,7 +794,6 @@
       }
     };
 
-    // Exportar CSV
     window.exportToCSV = function() {
       if (historyRecords.length === 0) {
         showModal('Exportação', 'Nenhum histórico gravado para exportação.');
@@ -884,7 +822,6 @@
       document.body.removeChild(link);
     };
 
-    // Atualiza KPIs
     function updateStats() {
       const activeCount = Object.keys(activeDowntimes).length;
       const operatingCount = MACHINES.length - activeCount;
@@ -900,21 +837,9 @@
       document.getElementById('statTodayCount').textContent = todayCount;
     }
 
-    // Modal e Toast Helpers
     window.showModal = function(title, message, iconName = 'alert-circle', color = 'red') {
       document.getElementById('modalTitle').textContent = title;
       document.getElementById('modalMessage').textContent = message;
-
-      const container = document.getElementById('modalIconContainer');
-      const icon = document.getElementById('modalIcon');
-
-      container.className = color === 'emerald' 
-        ? 'p-2 rounded-lg bg-emerald-500/10 text-emerald-400' 
-        : 'p-2 rounded-lg bg-red-500/10 text-red-400';
-
-      icon.setAttribute('data-lucide', iconName);
-      lucide.createIcons();
-
       document.getElementById('customModal').classList.remove('hidden');
     };
 
@@ -926,29 +851,17 @@
       const container = document.getElementById('toastContainer');
       const toast = document.createElement('div');
       toast.className = `p-3 rounded-lg shadow-xl border text-xs font-medium text-white flex items-center justify-between gap-2 transition-all transform translate-y-2 opacity-0 bg-slate-800 border-slate-700 pointer-events-auto`;
-      
       let borderAccent = color === 'emerald' ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-sky-500';
       toast.className += ' ' + borderAccent;
-
-      toast.innerHTML = `
-        <div class="flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full ${color === 'emerald' ? 'bg-emerald-400' : 'bg-sky-400'}"></span>
-          <span>${escapeHTML(message)}</span>
-        </div>
-      `;
-
+      toast.innerHTML = `<div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full ${color === 'emerald' ? 'bg-emerald-400' : 'bg-sky-400'}"></span><span>${escapeHTML(message)}</span></div>`;
       container.appendChild(toast);
-      setTimeout(() => {
-        toast.classList.remove('translate-y-2', 'opacity-0');
-      }, 10);
-
+      setTimeout(() => toast.classList.remove('translate-y-2', 'opacity-0'), 10);
       setTimeout(() => {
         toast.classList.add('opacity-0');
         setTimeout(() => toast.remove(), 300);
       }, 3000);
     }
 
-    // Configurações do Firebase via Modal
     window.openConfigModal = function() {
       const current = getFirebaseConfig();
       document.getElementById('firebaseConfigInput').value = JSON.stringify(current, null, 2);
@@ -967,28 +880,20 @@
         showToast("Configurações salvas. Recarregando...", "emerald");
         setTimeout(() => window.location.reload(), 1000);
       } catch (err) {
-        showModal('JSON Inválido', 'Certifique-se de colar um objeto JSON do Firebase válido.');
+        showModal('JSON Inválido', 'Certifique-se de colar um objeto JSON válido.');
       }
     };
 
     window.resetDefaultConfig = function() {
       localStorage.removeItem('custom_firebase_config');
-      showToast("Configuração restaurada ao padrão.", "sky");
+      showToast("Configuração restaurada.", "sky");
       setTimeout(() => window.location.reload(), 800);
     };
 
-    // Formatadores
     function formatDateTime(ts) {
       if (!ts) return '-';
       const d = new Date(ts);
-      return d.toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      });
+      return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
     }
 
     function formatDurationMs(ms) {
@@ -996,25 +901,15 @@
       const hours = Math.floor(totalSeconds / 3600);
       const minutes = Math.floor((totalSeconds % 3600) / 60);
       const seconds = totalSeconds % 60;
-
       const pad = (n) => String(n).padStart(2, '0');
       return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
     }
 
     function escapeHTML(str) {
       if (!str) return '';
-      return str.replace(/[&<>'"]/g, 
-        tag => ({
-          '&': '&amp;',
-          '<': '&lt;',
-          '>': '&gt;',
-          "'": '&#39;',
-          '"': '&quot;'
-        }[tag] || tag)
-      );
+      return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
     }
 
-    // Execução Inicial
     window.onload = async function() {
       await initAuth();
       setupRealtimeListeners();
