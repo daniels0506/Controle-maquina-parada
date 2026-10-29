@@ -236,7 +236,6 @@
         grid.appendChild(card);
       });
 
-      // Atualiza o dropdown
       const sel = document.getElementById('machineSelect');
       for (let opt of sel.options) {
         if (opt.value) {
@@ -272,7 +271,7 @@
           </div>
           <p class="text-slate-400">Início: ${new Date(rec.startTimestamp).toLocaleString()}</p>
           <p class="text-sky-400 font-mono">Duração: ${duration}</p>
-          ${rec.observation ? `<p class="italic text-slate-300">"${rec.observation}"</p>` : ''}
+          ${rec.observation ? `<p class="italic text-slate-300">"Obs: ${rec.observation}"</p>` : ''}
         `;
         list.appendChild(item);
       });
@@ -306,7 +305,6 @@
       active.endTimestamp = endTimestamp;
       active.isActive = false;
 
-      // Atualiza também no histórico
       const hist = historyRecords.find(r => r.id === active.id && r.isActive);
       if (hist) {
         hist.endTimestamp = endTimestamp;
@@ -353,6 +351,10 @@
       historyRecords.slice(0, 5).forEach(r => {
         const dur = r.isActive ? 'Em andamento' : formatDuration(r.endTimestamp - r.startTimestamp);
         text += `• *${r.machine}* (${r.reason})%0A   Duração: ${dur}%0A`;
+        if (r.observation) {
+          text += `   Obs: _${r.observation}_%0A`;
+        }
+        text += `%0A`;
       });
       window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
     };
