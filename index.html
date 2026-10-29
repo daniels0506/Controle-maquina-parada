@@ -396,22 +396,25 @@
       historyRecords.forEach(r => {
         csv += `"${r.machine}";"${r.reason}";"${new Date(r.startTimestamp).toLocaleString()}";"${r.endTimestamp ? new Date(r.endTimestamp).toLocaleString() : ''}";"${r.isActive ? 'ATIVA' : 'ENCERRADA'}";"${r.observation || ''}"\n`;
       });
-      const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
-      const file = new File([blob], 'historico_paradas.csv', { type: 'text/csv' });
+      
+      const blob = new Blob(["\ufeff" + csv], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+      const file = new File([blob], 'historico_paradas.csv', { type: 'application/vnd.ms-excel' });
 
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({
             files: [file],
             title: 'Relatório de Paradas',
-            text: 'Segue o relatório de paradas em formato CSV.'
+            text: 'Segue o relatório de paradas em formato de tabela.'
           });
+          return;
         } catch (error) {
-          console.log('Partilha cancelada ou falhou', error);
+          console.log('Partilha cancelada', error);
         }
-      } else {
-        exportToCSV();
       }
+      
+      // Fallback para download direto caso o navegador não suporte partilha de ficheiros
+      exportToCSV();
     };
 
     window.exportToCSV = function() {
@@ -420,7 +423,7 @@
       historyRecords.forEach(r => {
         csv += `"${r.machine}";"${r.reason}";"${new Date(r.startTimestamp).toLocaleString()}";"${r.endTimestamp ? new Date(r.endTimestamp).toLocaleString() : ''}";"${r.isActive ? 'ATIVA' : 'ENCERRADA'}";"${r.observation || ''}"\n`;
       });
-      const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob(["\ufeff" + csv], { type: 'application/vnd.ms-excel;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
       link.download = 'historico_paradas.csv';
