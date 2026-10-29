@@ -53,7 +53,7 @@
       </div>
       <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span id="syncStatus">Sincronizado (Nuvem)</span>
+        <span>Online (Nuvem)</span>
       </div>
     </div>
   </header>
@@ -81,15 +81,13 @@
       </div>
     </section>
 
-    <!-- STATUS DAS MÁQUINAS (COM CRONÔMETRO E BOTÃO DE FINALIZAR) -->
+    <!-- STATUS DAS MÁQUINAS -->
     <section class="space-y-4">
       <h2 class="text-base sm:text-lg font-semibold text-slate-200 flex items-center gap-2">
         <i data-lucide="layout-grid" class="w-5 h-5 text-sky-400"></i>
         Status das Máquinas (Multi-Dispositivo)
       </h2>
-      <div id="machinesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        <!-- Renderizado dinamicamente -->
-      </div>
+      <div id="machinesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
     </section>
 
     <!-- FORMULÁRIO DE REGISTAR PARADA -->
@@ -143,7 +141,7 @@
         </div>
         <div class="flex justify-end">
           <button type="submit"
-            class="w-full sm:w-auto px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white font-semibold text-sm rounded-lg shadow transition-all flex items-center justify-center gap-2">
+            class="w-full sm:w-auto px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white font-semibold text-sm rounded-lg shadow transition-all flex items-center justify-center gap-2 cursor-pointer">
             <i data-lucide="power" class="w-4 h-4"></i> Iniciar Parada
           </button>
         </div>
@@ -156,24 +154,21 @@
         <h3 class="font-bold text-slate-100 text-base flex items-center gap-2">
           <i data-lucide="history" class="w-5 h-5 text-sky-400"></i> Histórico de Paradas
         </h3>
-        <button onclick="exportToCSV()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-xs font-medium flex items-center gap-1">
+        <button onclick="exportToCSV()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-xs font-medium flex items-center gap-1 cursor-pointer">
           <i data-lucide="download" class="w-3.5 h-3.5"></i> Exportar CSV
         </button>
       </div>
 
-      <div id="historyList" class="space-y-2.5">
-        <!-- Renderizado dinamicamente -->
-      </div>
+      <div id="historyList" class="space-y-2.5"></div>
     </section>
   </main>
 
-  <!-- SCRIPT FIREBASE COM SINCRONIZAÇÃO EM TEMPO REAL -->
+  <!-- SCRIPT FIREBASE -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // Configuração pública do Firebase para sincronização compartilhada
     const firebaseConfig = {
       apiKey: "AIzaSyBw0X11234567890abcdefghijklmnopqrst",
       authDomain: "controle-maquina-parada.firebaseapp.com",
@@ -187,20 +182,18 @@
     let activeDowntimes = {};
     let historyRecords = [];
 
-    // Inicialização do Firebase
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // Conexão em Tempo Real
     async function initCloudSync() {
       try {
         await signInAnonymously(auth);
       } catch (e) {
-        console.warn("Auth Anónima:", e);
+        console.warn("Auth:", e);
       }
 
-      // Escuta paradas ativas em tempo real de TODOS os telemóveis
+      // Sincroniza paradas ativas em tempo real
       onSnapshot(collection(db, "active_downtimes"), (snapshot) => {
         activeDowntimes = {};
         snapshot.forEach((doc) => {
@@ -209,7 +202,7 @@
         renderUI();
       });
 
-      // Escuta o histórico em tempo real
+      // Sincroniza o histórico em tempo real em todos os telemóveis
       onSnapshot(collection(db, "history_records"), (snapshot) => {
         historyRecords = [];
         snapshot.forEach((doc) => {
@@ -258,8 +251,7 @@
               </div>
             </div>
 
-            <button onclick="handleEndDowntime('${mach}')"
-              class="w-full mt-3 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-lg shadow flex items-center justify-center gap-2 cursor-pointer">
+            <button type="button" data-machine="${mach}" class="btn-end-stop w-full mt-3 py-3 px-3 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-lg flex items-center justify-center gap-2 cursor-pointer">
               <i data-lucide="check-circle" class="w-4 h-4"></i> FINALIZAR / ENCERRAR PARADA
             </button>
           `;
@@ -275,6 +267,15 @@
         html += `</div>`;
         card.innerHTML = html;
         grid.appendChild(card);
+      });
+
+      // Atribuição direta do evento de clique com suporte otimizado a toque em telemóveis
+      document.querySelectorAll('.btn-end-stop').forEach(button => {
+        button.addEventListener('click', async function(e) {
+          e.preventDefault();
+          const machName = this.getAttribute('data-machine');
+          await executeEndDowntime(machName);
+        });
       });
 
       // Atualiza o dropdown
@@ -331,29 +332,28 @@
       const recordId = `${machine}_${startTimestamp}`;
       const record = { id: recordId, machine, reason, observation, startTimestamp, endTimestamp: null, isActive: true };
 
-      // Grava no Firebase Firestore (Nuvem)
       await setDoc(doc(db, "active_downtimes", machine), record);
       await setDoc(doc(db, "history_records", recordId), record);
 
       document.getElementById('startStopForm').reset();
     };
 
-    window.handleEndDowntime = async function(machineName) {
+    async function executeEndDowntime(machineName) {
       const active = activeDowntimes[machineName];
       if (!active) return;
 
       const endTimestamp = Date.now();
       
-      // Atualiza o histórico na nuvem
+      // Atualiza o histórico na nuvem para todos os telemóveis verem
       await setDoc(doc(db, "history_records", active.id), {
         ...active,
         endTimestamp,
         isActive: false
       });
 
-      // Remove a máquina do estado de parada na nuvem
+      // Remove a máquina do estado ativo para liberar o painel em todos os telemóveis
       await deleteDoc(doc(db, "active_downtimes", machineName));
-    };
+    }
 
     function updateStats() {
       const activeCount = Object.keys(activeDowntimes).length;
