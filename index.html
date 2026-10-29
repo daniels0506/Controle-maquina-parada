@@ -46,7 +46,6 @@
         <div>
           <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white flex items-center gap-2">
             Monitor de Paradas
-            <span class="text-xs font-normal px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">Chão de Fábrica</span>
           </h1>
           <p class="text-xs text-slate-400">Modo Estável e Seguro</p>
         </div>
@@ -276,7 +275,6 @@
           <p class="text-sky-400 font-mono">Duração: ${duration}</p>
           ${rec.observation ? `<p class="italic text-slate-300">"Obs: ${rec.observation}"</p>` : ''}
           
-          <!-- Botão individual para apagar este registo -->
           <button onclick="deleteHistoryItem('${rec.id}')" title="Apagar este registo"
             class="absolute top-2.5 right-2.5 p-1 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors cursor-pointer">
             <i data-lucide="trash-2" class="w-4 h-4"></i>
@@ -374,7 +372,7 @@
         alert('Nenhum histórico para enviar.');
         return;
       }
-      let text = '*📊 RELATÓRIO DE PARADAS - CHÃO DE FÁBRICA*%0A%0A';
+      let text = '*📊 RELATÓRIO DE PARADAS*%0A%0A';
       historyRecords.slice(0, 5).forEach(r => {
         const dur = r.isActive ? 'Em andamento' : formatDuration(r.endTimestamp - r.startTimestamp);
         text += `• *${r.machine}* (${r.reason})%0A   Duração: ${dur}%0A`;
