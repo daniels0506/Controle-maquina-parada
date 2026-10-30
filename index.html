@@ -120,16 +120,11 @@
             <select id="reasonSelect" required
               class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-sky-500">
               <option value="" disabled selected>Escolha o motivo...</option>
-              <option value="Troca de material">Troca de material</option>
-              <option value="Preparação ou troca de serviço">Preparação ou troca de serviço</option>
-              <option value="Limpeza da máquina">Limpeza da máquina</option>
-              <option value="Impressão de teste">Impressão de teste</option>
-              <option value="Falta de tinta ou material">Falta de tinta ou material</option>
-              <option value="Aguardando arquivo ou aprovação">Aguardando arquivo ou aprovação</option>
-              <option value="Falha técnica ou alarme">Falha técnica ou alarme</option>
+              <option value="Aguardando PCP">Aguardando PCP</option>
+              <option value="Aguardando arquivo na pré-impressão">Aguardando arquivo na pré-impressão</option>
+              <option value="Máquina parada manutenção">Máquina parada manutenção</option>
+              <option value="Colocar/retirar Skins">Colocar/retirar Skins</option>
               <option value="Manutenção programada">Manutenção programada</option>
-              <option value="Crash da máquina">Crash da máquina</option>
-              <option value="Colocar/retirar skins">Colocar/retirar skins</option>
             </select>
           </div>
         </div>
@@ -158,7 +153,7 @@
             <i data-lucide="share-2" class="w-3.5 h-3.5"></i> Enviar WhatsApp
           </button>
           <button onclick="exportToCSV()" class="flex-1 sm:flex-none px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer">
-            <i data-lucide="download" class="w-3.5 h-3.5"></i> Exportar CSV
+            <i data-lucide="download" class="w-3.5 h-3.5"></i> Baixar CSV
           </button>
           <button onclick="clearHistory()" class="flex-1 sm:flex-none px-3 py-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer">
             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Limpar Tudo
