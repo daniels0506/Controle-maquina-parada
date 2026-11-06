@@ -137,21 +137,29 @@
       </form>
     </section>
 
-    <!-- HISTÓRICO -->
+    <!-- HISTÓRICO COM FILTRO POR DATA -->
     <section class="bg-industrial-800 border border-slate-700 rounded-xl p-5 shadow-md space-y-4">
-      <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pb-3 border-b border-slate-700">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-3 pb-3 border-b border-slate-700">
         <h3 class="font-bold text-slate-100 text-base flex items-center gap-2">
-          📜 Histórico de Paradas Salvo
+          📜 Histórico de Paradas
         </h3>
-        <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          <button onclick="shareWhatsApp()" class="flex-1 sm:flex-none px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer">
-            💬 Enviar WhatsApp (Geral)
+        
+        <!-- Filtro por Data e Ações -->
+        <div class="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+          <div class="flex items-center gap-1.5 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs">
+            <span class="text-slate-400">Filtrar Data:</span>
+            <input type="date" id="filterDate" onchange="renderUI()" class="bg-transparent text-slate-200 focus:outline-none cursor-pointer">
+            <button onclick="clearDateFilter()" title="Limpar filtro" class="text-slate-400 hover:text-white px-1">✕</button>
+          </div>
+
+          <button onclick="shareWhatsApp()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer">
+            💬 WhatsApp
           </button>
-          <button onclick="exportToCSV()" class="flex-1 sm:flex-none px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer">
-            📥 Baixar CSV
+          <button onclick="exportToCSV()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer">
+            📥 CSV
           </button>
-          <button onclick="clearHistory()" class="flex-1 sm:flex-none px-3 py-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer">
-            🗑️ Limpar Tudo
+          <button onclick="clearHistory()" class="px-3 py-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer">
+            🗑️ Limpar
           </button>
         </div>
       </div>
@@ -239,16 +247,33 @@
       updateStats();
     }
 
+    function getFilteredHistory() {
+      const dateVal = document.getElementById('filterDate').value;
+      if (!dateVal) return historyRecords;
+
+      return historyRecords.filter(rec => {
+        const recDate = new Date(rec.startTimestamp).toISOString().split('T')[0];
+        return recDate === dateVal;
+      });
+    }
+
+    window.clearDateFilter = function() {
+      document.getElementById('filterDate').value = '';
+      renderUI();
+    };
+
     function renderHistory() {
       const list = document.getElementById('historyList');
       list.innerHTML = '';
 
-      if (historyRecords.length === 0) {
-        list.innerHTML = '<p class="text-xs text-slate-500 text-center py-4">Nenhum registo no histórico.</p>';
+      const filteredRecords = getFilteredHistory();
+
+      if (filteredRecords.length === 0) {
+        list.innerHTML = '<p class="text-xs text-slate-500 text-center py-4">Nenhum registo encontrado para esta data.</p>';
         return;
       }
 
-      historyRecords.forEach((rec, index) => {
+      filteredRecords.forEach((rec) => {
         const isRunning = rec.isActive;
         const duration = isRunning ? 'Em andamento...' : formatDuration(rec.endTimestamp - rec.startTimestamp);
 
@@ -364,12 +389,13 @@
     }
 
     window.shareWhatsApp = function() {
-      if (historyRecords.length === 0) {
-        alert('Nenhum histórico para enviar.');
+      const recordsToShare = getFilteredHistory();
+      if (recordsToShare.length === 0) {
+        alert('Nenhum histórico encontrado para enviar com o filtro atual.');
         return;
       }
       let text = '*📊 RELATÓRIO DE PARADAS*%0A%0A';
-      historyRecords.slice(0, 5).forEach(r => {
+      recordsToShare.slice(0, 5).forEach(r => {
         const dur = r.isActive ? 'Em andamento' : formatDuration(r.endTimestamp - r.startTimestamp);
         text += `• *${r.machine}* (${r.reason})%0A   Duração: ${dur}%0A`;
         if (r.observation) {
@@ -381,9 +407,10 @@
     };
 
     window.exportToCSV = function() {
-      if (historyRecords.length === 0) return;
+      const recordsToExport = getFilteredHistory();
+      if (recordsToExport.length === 0) return;
       let csv = 'Maquina;Motivo;Inicio;Fim;Status;Observacao\n';
-      historyRecords.forEach(r => {
+      recordsToExport.forEach(r => {
         csv += `"${r.machine}";"${r.reason}";"${new Date(r.startTimestamp).toLocaleString()}";"${r.endTimestamp ? new Date(r.endTimestamp).toLocaleString() : ''}";"${r.isActive ? 'ATIVA' : 'ENCERRADA'}";"${r.observation || ''}"\n`;
       });
       const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
