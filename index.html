@@ -220,7 +220,7 @@
 
             <button type="button" onclick="handleEndDowntime('${mach}')"
               class="w-full mt-3 py-3 px-3 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow-lg flex items-center justify-center gap-2 cursor-pointer">
-              ✅ FINALIZAR / ENCERRAR PARADA
+              ✅ FINALIZAR & AVISAR WHATSAPP
             </button>
           `;
         } else {
@@ -358,9 +358,30 @@
         hist.isActive = false;
       }
 
+      const durationFormatted = formatDuration(endTimestamp - active.startTimestamp);
+      
+      // Salva antes de apagar dos ativos
+      const finishedMachine = active.machine;
+      const finishedReason = active.reason;
+      const finishedObs = active.observation;
+      const startStr = new Date(active.startTimestamp).toLocaleTimeString();
+      const endStr = new Date(endTimestamp).toLocaleTimeString();
+
       delete activeDowntimes[machineName];
       saveData();
       renderUI();
+
+      // Abre o WhatsApp com o relatório de encerramento
+      let endText = `*✅ PARADA FINALIZADA / MÁQUINA LIBERADA*%0A%0A`;
+      endText += `• *Máquina:* ${finishedMachine}%0A`;
+      endText += `• *Motivo:* ${finishedReason}%0A`;
+      endText += `• *Início:* ${startStr}%0A`;
+      endText += `• *Término:* ${endStr}%0A`;
+      endText += `• *Duração Total:* *${durationFormatted}*%0A`;
+      if (finishedObs) {
+        endText += `• *Obs:* _${finishedObs}_%0A`;
+      }
+      window.open(`https://api.whatsapp.com/send?text=${endText}`, '_blank');
     };
 
     function updateStats() {
