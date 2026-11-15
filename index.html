@@ -238,7 +238,19 @@
         await setDoc(doc(db, "active_downtimes", machine), record);
         await addDoc(collection(db, "history_records"), record);
         document.getElementById('startStopForm').reset();
-        window.open(`https://api.whatsapp.com/send?text=*🚨 ALERTA*%0A• Máquina: ${machine}%0A• Motivo: ${reason}`, '_blank');
+
+        // MENSAGEM DO WHATSAPP COMPLETA (COMO ESTAVA ANTES)
+        let alertText = `*🚨 ALERTA DE PARADA DE MÁQUINA*%0A%0A`;
+        alertText += `• *Máquina:* ${machine}%0A`;
+        alertText += `• *Motivo:* ${reason}%0A`;
+        alertText += `• *Início:* ${new Date(startTimestamp).toLocaleTimeString()}%0A`;
+        if (limitMinutes) {
+          alertText += `• *Tempo Previsto:* ${limitMinutes} min (até ${new Date(limitTimestamp).toLocaleTimeString()})%0A`;
+        }
+        if (observation) {
+          alertText += `• *Obs:* _${observation}_%0A`;
+        }
+        window.open(`https://api.whatsapp.com/send?text=${alertText}`, '_blank');
       } catch (err) {
         console.error(err);
       }
@@ -257,7 +269,17 @@
         if (matchingHistory) {
           await updateDoc(doc(db, "history_records", matchingHistory.firebaseDocId), { endTimestamp, isActive: false });
         }
-        window.open(`https://api.whatsapp.com/send?text=*✅ FINALIZADA*%0A• Máquina: ${machineName}%0A• Duração: ${durationFormatted}`, '_blank');
+
+        let endText = `*✅ PARADA FINALIZADA / MÁQUINA LIBERADA*%0A%0A`;
+        endText += `• *Máquina:* ${active.machine}%0A`;
+        endText += `• *Motivo:* ${active.reason}%0A`;
+        endText += `• *Início:* ${new Date(active.startTimestamp).toLocaleTimeString()}%0A`;
+        endText += `• *Término:* ${new Date(endTimestamp).toLocaleTimeString()}%0A`;
+        endText += `• *Duração Total:* *${durationFormatted}*%0A`;
+        if (active.observation) {
+          endText += `• *Obs:* _${active.observation}_%0A`;
+        }
+        window.open(`https://api.whatsapp.com/send?text=${endText}`, '_blank');
       } catch (err) {
         console.error(err);
       }
@@ -311,23 +333,26 @@
 
     window.shareWhatsApp = function() {
       const records = getFilteredHistory();
-      let text = '*📊 RELATÓRIO*%0A%0A';
+      let text = '*📊 RELATÓRIO DE PARADAS*%0A%0A';
       records.slice(0, 5).forEach(r => {
-        text += `• *${r.machine}* (${r.reason})%0A`;
+        const dur = r.isActive ? 'Em andamento' : formatDuration(r.endTimestamp - r.startTimestamp);
+        text += `• *${r.machine}* (${r.reason})%0A   Duração: ${dur}%0A`;
+        if (r.observation) text += `   Obs: _${r.observation}_%0A`;
+        text += `%0A`;
       });
       window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
     };
 
     window.exportToCSV = function() {
       const records = getFilteredHistory();
-      let csv = 'Maquina;Motivo;Inicio;Fim;Status\n';
+      let csv = 'Maquina;Motivo;Inicio;Fim;Status;Observacao\n';
       records.forEach(r => {
-        csv += `"${r.machine}";"${r.reason}";"${new Date(r.startTimestamp).toLocaleString()}";"${r.endTimestamp ? new Date(r.endTimestamp).toLocaleString() : ''}";"${r.isActive ? 'ATIVA' : 'ENCERRADA'}"\n`;
+        csv += `"${r.machine}";"${r.reason}";"${new Date(r.startTimestamp).toLocaleString()}";"${r.endTimestamp ? new Date(r.endTimestamp).toLocaleString() : ''}";"${r.isActive ? 'ATIVA' : 'ENCERRADA'}";"${r.observation || ''}"\n`;
       });
       const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.download = 'historico.csv';
+      link.download = 'historico_paradas.csv';
       link.click();
     };
 
