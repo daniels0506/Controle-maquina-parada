@@ -232,25 +232,25 @@
       const limitMinutes = limitMinsVal ? parseInt(limitMinsVal, 10) : null;
       const limitTimestamp = limitMinutes ? startTimestamp + (limitMinutes * 60 * 1000) : null;
 
+      // ABRE O WHATSAPP IMEDIATAMENTE (Compatível com iPhone e Android)
+      let alertText = `*🚨 ALERTA DE PARADA DE MÁQUINA*%0A%0A`;
+      alertText += `• *Máquina:* ${machine}%0A`;
+      alertText += `• *Motivo:* ${reason}%0A`;
+      alertText += `• *Início:* ${new Date(startTimestamp).toLocaleTimeString()}%0A`;
+      if (limitMinutes) {
+        alertText += `• *Tempo Previsto:* ${limitMinutes} min (até ${new Date(limitTimestamp).toLocaleTimeString()})%0A`;
+      }
+      if (observation) {
+        alertText += `• *Obs:* _${observation}_%0A`;
+      }
+      window.open(`https://api.whatsapp.com/send?text=${alertText}`, '_blank');
+
       const record = { machine, reason, observation, startTimestamp, limitMinutes, limitTimestamp, endTimestamp: null, isActive: true };
 
       try {
         await setDoc(doc(db, "active_downtimes", machine), record);
         await addDoc(collection(db, "history_records"), record);
         document.getElementById('startStopForm').reset();
-
-        // MENSAGEM DO WHATSAPP COMPLETA
-        let alertText = `*🚨 ALERTA DE PARADA DE MÁQUINA*%0A%0A`;
-        alertText += `• *Máquina:* ${machine}%0A`;
-        alertText += `• *Motivo:* ${reason}%0A`;
-        alertText += `• *Início:* ${new Date(startTimestamp).toLocaleTimeString()}%0A`;
-        if (limitMinutes) {
-          alertText += `• *Tempo Previsto:* ${limitMinutes} min (até ${new Date(limitTimestamp).toLocaleTimeString()})%0A`;
-        }
-        if (observation) {
-          alertText += `• *Obs:* _${observation}_%0A`;
-        }
-        window.open(`https://api.whatsapp.com/send?text=${alertText}`, '_blank');
       } catch (err) {
         console.error(err);
       }
@@ -262,6 +262,18 @@
       const endTimestamp = Date.now();
       const durationFormatted = formatDuration(endTimestamp - active.startTimestamp);
 
+      // ABRE O WHATSAPP IMEDIATAMENTE NO TÉRMINO
+      let endText = `*✅ PARADA FINALIZADA / MÁQUINA LIBERADA*%0A%0A`;
+      endText += `• *Máquina:* ${active.machine}%0A`;
+      endText += `• *Motivo:* ${active.reason}%0A`;
+      endText += `• *Início:* ${new Date(active.startTimestamp).toLocaleTimeString()}%0A`;
+      endText += `• *Término:* ${new Date(endTimestamp).toLocaleTimeString()}%0A`;
+      endText += `• *Duração Total:* *${durationFormatted}*%0A`;
+      if (active.observation) {
+        endText += `• *Obs:* _${active.observation}_%0A`;
+      }
+      window.open(`https://api.whatsapp.com/send?text=${endText}`, '_blank');
+
       try {
         await deleteDoc(doc(db, "active_downtimes", machineName));
         delete alertedMachines[machineName];
@@ -269,17 +281,6 @@
         if (matchingHistory) {
           await updateDoc(doc(db, "history_records", matchingHistory.firebaseDocId), { endTimestamp, isActive: false });
         }
-
-        let endText = `*✅ PARADA FINALIZADA / MÁQUINA LIBERADA*%0A%0A`;
-        endText += `• *Máquina:* ${active.machine}%0A`;
-        endText += `• *Motivo:* ${active.reason}%0A`;
-        endText += `• *Início:* ${new Date(active.startTimestamp).toLocaleTimeString()}%0A`;
-        endText += `• *Término:* ${new Date(endTimestamp).toLocaleTimeString()}%0A`;
-        endText += `• *Duração Total:* *${durationFormatted}*%0A`;
-        if (active.observation) {
-          endText += `• *Obs:* _${active.observation}_%0A`;
-        }
-        window.open(`https://api.whatsapp.com/send?text=${endText}`, '_blank');
       } catch (err) {
         console.error(err);
       }
@@ -438,7 +439,6 @@
       </form>
     </section>
 
-    <!-- HISTÓRICO EMPILHADO (GARANTE QUE NADA SAI DA TELA) -->
     <section class="bg-slate-800 border border-slate-700 rounded-xl p-4 sm:p-5 shadow-md space-y-4">
       <div class="flex flex-col gap-3 pb-3 border-b border-slate-700">
         <div class="flex justify-between items-center">
