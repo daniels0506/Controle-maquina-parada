@@ -26,6 +26,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+    // ⚠️ MANTÉM OS TEUS DADOS REAIS DO FIREBASE AQUI EM BAIXO:
     const firebaseConfig = {
       apiKey: "AIzaSyCWDJ1xv4eEjFLNnuoPON3IZR...",
       authDomain: "monitor-paradas.firebaseapp.com",
@@ -41,6 +42,80 @@
     const MACHINES = ["EPSON", "VANGUARD", "AGFA", "P5", "LIYU"];
     let activeDowntimes = {};
     let historyRecords = [];
+    // Controla quais máquinas já dispararam o alarme neste dispositivo para não repetir infinito
+    let alertedMachines = {};
+
+    // Sistema de Áudio (Web Audio API - funciona sem ficheiros mp3 externos)
+    let audioCtx = null;
+    window.unlockAudioAndNotifications = async function() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        await audioCtx.resume();
+      }
+      if ("Notification" in window && Notification.permission !== "granted") {
+        await Notification.requestPermission();
+      }
+      updateAlertButtonStatus();
+      playAlarmBeep(); // Toca um bipe curto de teste para confirmar
+    };
+
+    function playAlarmBeep() {
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        // Toca 3 bipes rápidos de alerta
+        [0, 0.25, 0.5].forEach(delay => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(880, audioCtx.currentTime + delay); // Nota Lá agudo
+          gain.gain.setValueAtTime(0.4, audioCtx.currentTime + delay);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + delay + 0.18);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(audioCtx.currentTime + delay);
+          osc.stop(audioCtx.currentTime + delay + 0.18);
+        });
+      } catch (e) {
+        console.log("Áudio bloqueado pelo navegador até interação:", e);
+      }
+    }
+
+    function triggerSystemAlert(machine, reason) {
+      // 1. Vibração no telemóvel Android
+      if ("vibrate" in navigator) {
+        navigator.vibrate([500, 200, 500, 200, 800]);
+      }
+
+      // 2. Som de alarme
+      playAlarmBeep();
+
+      // 3. Notificação Push na barra superior do Android
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification(`⏰ TEMPO ESGOTADO: ${machine}`, {
+          body: `A parada (${reason}) atingiu o tempo previsto! Finalize no sistema.`,
+          tag: `alert-${machine}`,
+          requireInteraction: true
+        });
+      }
+    }
+
+    function updateAlertButtonStatus() {
+      const btn = document.getElementById('enableAlertsBtn');
+      if (!btn) return;
+      if ("Notification" in window && Notification.permission === "granted") {
+        btn.innerHTML = '🔔 Alertas Ativos';
+        btn.className = 'px-3 py-1.5 rounded-full bg-sky-500/10 border border-sky-500/30 text-sky-400 text-xs font-medium cursor-pointer';
+      } else {
+        btn.innerHTML = '🔕 Ativar Alertas';
+        btn.className = 'px-3 py-1.5 rounded-full bg-amber-500/20 border border-amber-500/50 text-amber-300 text-xs font-bold animate-bounce cursor-pointer';
+      }
+    }
 
     function initRealtimeSync() {
       onSnapshot(collection(db, "active_downtimes"), (snapshot) => {
@@ -48,6 +123,12 @@
         snapshot.forEach((docSnap) => {
           activeDowntimes[docSnap.id] = { firebaseDocId: docSnap.id, ...docSnap.data() };
         });
+
+        // Limpa controlo de alerta se a máquina já voltou a trabalhar
+        Object.keys(alertedMachines).forEach(m => {
+          if (!activeDowntimes[m]) delete alertedMachines[m];
+        });
+
         renderUI();
       });
 
@@ -61,6 +142,10 @@
       });
     }
 
+    window.setPresetMinutes = function(mins) {
+      document.getElementById('limitMinutesInput').value = mins;
+    };
+
     window.renderUI = function() {
       const grid = document.getElementById('machinesGrid');
       if (!grid) return;
@@ -70,19 +155,34 @@
         const active = activeDowntimes[mach];
         const isStopped = !!active;
 
+        // Verifica se tem limite e se já estourou
+        let isOverdue = false;
+        if (isStopped && active.limitTimestamp) {
+          isOverdue = Date.now() >= active.limitTimestamp;
+        }
+
         const card = document.createElement('div');
-        card.className = `rounded-xl border p-4 shadow-sm flex flex-col justify-between ${
-          isStopped ? 'bg-red-950/30 border-red-500/80 animate-pulse' : 'bg-slate-800 border-slate-700'
+        card.id = `card-${mach}`;
+        card.className = `rounded-xl border p-4 shadow-sm flex flex-col justify-between transition-colors ${
+          isOverdue
+            ? 'bg-amber-950/50 border-amber-500 animate-pulse'
+            : isStopped
+              ? 'bg-red-950/30 border-red-500/80'
+              : 'bg-slate-800 border-slate-700'
         }`;
 
         let html = `
           <div class="space-y-3">
             <div class="flex items-center justify-between border-b border-slate-700/60 pb-2">
               <h3 class="font-bold text-white text-base">${mach}</h3>
-              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                isStopped ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+              <span id="badge-${mach}" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                isOverdue
+                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/60'
+                  : isStopped
+                    ? 'bg-red-500/20 text-red-400 border border-red-500/40'
+                    : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
               }">
-                ${isStopped ? '🔴 EM PARADA' : '🟢 OPERACIONAL'}
+                ${isOverdue ? '⏰ TEMPO ESGOTADO' : isStopped ? '🔴 EM PARADA' : '🟢 OPERACIONAL'}
               </span>
             </div>
         `;
@@ -93,10 +193,16 @@
               <p><strong class="text-slate-400">Motivo:</strong> ${active.reason}</p>
               ${active.observation ? `<p><strong class="text-slate-400">Obs:</strong> ${active.observation}</p>` : ''}
               <p><strong class="text-slate-400">Início:</strong> ${new Date(active.startTimestamp).toLocaleTimeString()}</p>
+              ${active.limitMinutes ? `<p><strong class="text-slate-400">Previsão:</strong> ${active.limitMinutes} min (até ${new Date(active.limitTimestamp).toLocaleTimeString()})</p>` : ''}
               
-              <div class="bg-slate-900/90 border border-red-500/50 rounded-lg p-3 text-center mt-2">
-                <span class="text-[10px] text-slate-400 block uppercase">Tempo Decorrido</span>
-                <div class="text-2xl font-mono font-bold text-red-400 timer-display" data-start="${active.startTimestamp}">00:00:00</div>
+              <div class="bg-slate-900/90 border ${isOverdue ? 'border-amber-500/80' : 'border-red-500/50'} rounded-lg p-3 text-center mt-2 space-y-1">
+                <span class="text-[10px] text-slate-400 block uppercase">Tempo Total Parada</span>
+                <div class="text-2xl font-mono font-bold ${isOverdue ? 'text-amber-400' : 'text-red-400'} timer-display"
+                     data-machine="${mach}"
+                     data-reason="${active.reason}"
+                     data-start="${active.startTimestamp}"
+                     data-limit="${active.limitTimestamp || ''}">00:00:00</div>
+                ${active.limitTimestamp ? `<div id="countdown-${mach}" class="text-xs font-mono font-semibold text-sky-400">Calculando...</div>` : ''}
               </div>
             </div>
 
@@ -114,368 +220,4 @@
         }
 
         html += `</div>`;
-        card.innerHTML = html;
-        grid.appendChild(card);
-      });
-
-      const sel = document.getElementById('machineSelect');
-      if (sel) {
-        for (let opt of sel.options) {
-          if (opt.value) {
-            opt.disabled = !!activeDowntimes[opt.value];
-            opt.text = opt.disabled ? `${opt.value} (EM PARADA)` : opt.value;
-          }
-        }
-      }
-
-      renderHistory();
-      updateStats();
-    }
-
-    function getFilteredHistory() {
-      const dateInput = document.getElementById('filterDate');
-      if (!dateInput) return historyRecords;
-      const dateVal = dateInput.value;
-      if (!dateVal) return historyRecords;
-
-      return historyRecords.filter(rec => {
-        const recDate = new Date(rec.startTimestamp).toISOString().split('T')[0];
-        return recDate === dateVal;
-      });
-    }
-
-    window.clearDateFilter = function() {
-      document.getElementById('filterDate').value = '';
-      renderUI();
-    };
-
-    function renderHistory() {
-      const list = document.getElementById('historyList');
-      if (!list) return;
-      list.innerHTML = '';
-
-      const filteredRecords = getFilteredHistory();
-
-      if (filteredRecords.length === 0) {
-        list.innerHTML = '<p class="text-xs text-slate-500 text-center py-4">Nenhum registo encontrado para esta data.</p>';
-        return;
-      }
-
-      filteredRecords.forEach((rec) => {
-        const isRunning = rec.isActive;
-        const duration = isRunning ? 'Em andamento...' : formatDuration(rec.endTimestamp - rec.startTimestamp);
-
-        const item = document.createElement('div');
-        item.className = 'bg-slate-900/80 border border-slate-700/70 rounded-lg p-3 text-xs space-y-1 relative';
-        item.innerHTML = `
-          <div class="flex justify-between items-center font-bold text-white pr-6">
-            <span>${rec.machine} - ${rec.reason}</span>
-            <span class="${isRunning ? 'text-red-400' : 'text-emerald-400'}">${isRunning ? '🔴 ATIVA' : '🟢 ENCERRADA'}</span>
-          </div>
-          <p class="text-slate-400">Início: ${new Date(rec.startTimestamp).toLocaleString()}</p>
-          <p class="text-sky-400 font-mono">Duração: ${duration}</p>
-          ${rec.observation ? `<p class="italic text-slate-300">"Obs: ${rec.observation}"</p>` : ''}
-          
-          <button onclick="window.deleteHistoryItem('${rec.firebaseDocId}')" title="Apagar este registo"
-            class="absolute top-2.5 right-2.5 p-1 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors cursor-pointer text-sm">
-            🗑️
-          </button>
-        `;
-        list.appendChild(item);
-      });
-    }
-
-    window.deleteHistoryItem = async function(docId) {
-      if (confirm('Deseja realmente apagar este registo do histórico?')) {
-        try {
-          await deleteDoc(doc(db, "history_records", docId));
-        } catch (e) {
-          console.error("Erro ao apagar:", e);
-        }
-      }
-    };
-
-    window.clearHistory = async function() {
-      if (historyRecords.length === 0) return;
-      if (confirm('Tem certeza que deseja apagar TODO o histórico?')) {
-        try {
-          for (let rec of historyRecords) {
-            await deleteDoc(doc(db, "history_records", rec.firebaseDocId));
-          }
-        } catch (e) {
-          console.error("Erro ao limpar histórico:", e);
-        }
-      }
-    };
-
-    window.handleStartDowntime = async function(e) {
-      e.preventDefault();
-      const machine = document.getElementById('machineSelect').value;
-      const reason = document.getElementById('reasonSelect').value;
-      const observation = document.getElementById('observationInput').value.trim();
-
-      if (!machine || !reason) return;
-
-      const startTimestamp = Date.now();
-      const record = { machine, reason, observation, startTimestamp, endTimestamp: null, isActive: true };
-
-      try {
-        await setDoc(doc(db, "active_downtimes", machine), record);
-        await addDoc(collection(db, "history_records"), record);
-
-        document.getElementById('startStopForm').reset();
-
-        let alertText = `*🚨 ALERTA DE PARADA DE MÁQUINA*%0A%0A`;
-        alertText += `• *Máquina:* ${machine}%0A`;
-        alertText += `• *Motivo:* ${reason}%0A`;
-        alertText += `• *Início:* ${new Date(startTimestamp).toLocaleTimeString()}%0A`;
-        if (observation) {
-          alertText += `• *Obs:* _${observation}_%0A`;
-        }
-        window.open(`https://api.whatsapp.com/send?text=${alertText}`, '_blank');
-      } catch (err) {
-        console.error("Erro ao iniciar parada:", err);
-      }
-    };
-
-    window.handleEndDowntime = async function(machineName) {
-      const active = activeDowntimes[machineName];
-      if (!active) return;
-
-      const endTimestamp = Date.now();
-      const durationFormatted = formatDuration(endTimestamp - active.startTimestamp);
-
-      try {
-        await deleteDoc(doc(db, "active_downtimes", machineName));
-
-        const matchingHistory = historyRecords.find(r => r.machine === machineName && r.isActive);
-        if (matchingHistory) {
-          await updateDoc(doc(db, "history_records", matchingHistory.firebaseDocId), {
-            endTimestamp: endTimestamp,
-            isActive: false
-          });
-        }
-
-        let endText = `*✅ PARADA FINALIZADA / MÁQUINA LIBERADA*%0A%0A`;
-        endText += `• *Máquina:* ${active.machine}%0A`;
-        endText += `• *Motivo:* ${active.reason}%0A`;
-        endText += `• *Início:* ${new Date(active.startTimestamp).toLocaleTimeString()}%0A`;
-        endText += `• *Término:* ${new Date(endTimestamp).toLocaleTimeString()}%0A`;
-        endText += `• *Duração Total:* *${durationFormatted}*%0A`;
-        if (active.observation) {
-          endText += `• *Obs:* _${active.observation}_%0A`;
-        }
-        window.open(`https://api.whatsapp.com/send?text=${endText}`, '_blank');
-      } catch (err) {
-        console.error("Erro ao encerrar parada:", err);
-      }
-    };
-
-    function updateStats() {
-      const activeCount = Object.keys(activeDowntimes).length;
-      const opEl = document.getElementById('statOperating');
-      const stEl = document.getElementById('statStopped');
-      const tdEl = document.getElementById('statTodayCount');
-
-      if (opEl) opEl.textContent = MACHINES.length - activeCount;
-      if (stEl) stEl.textContent = activeCount;
-
-      const todayStart = new Date().setHours(0,0,0,0);
-      const todayCount = historyRecords.filter(r => r.startTimestamp >= todayStart).length;
-      if (tdEl) tdEl.textContent = todayCount;
-    }
-
-    function updateTimers() {
-      document.querySelectorAll('.timer-display').forEach(el => {
-        const start = parseInt(el.getAttribute('data-start'), 10);
-        const diff = Date.now() - start;
-        el.textContent = formatDuration(diff);
-      });
-    }
-
-    function formatDuration(ms) {
-      const secs = Math.floor(ms / 1000);
-      const h = String(Math.floor(secs / 3600)).padStart(2, '0');
-      const m = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
-      const s = String(secs % 60).padStart(2, '0');
-      return `${h}:${m}:${s}`;
-    }
-
-    window.shareWhatsApp = function() {
-      const recordsToShare = getFilteredHistory();
-      if (recordsToShare.length === 0) {
-        alert('Nenhum histórico encontrado para enviar com o filtro atual.');
-        return;
-      }
-      let text = '*📊 RELATÓRIO DE PARADAS*%0A%0A';
-      recordsToShare.slice(0, 5).forEach(r => {
-        const dur = r.isActive ? 'Em andamento' : formatDuration(r.endTimestamp - r.startTimestamp);
-        text += `• *${r.machine}* (${r.reason})%0A   Duração: ${dur}%0A`;
-        if (r.observation) {
-          text += `   Obs: _${r.observation}_%0A`;
-        }
-        text += `%0A`;
-      });
-      window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
-    };
-
-    window.exportToCSV = function() {
-      const recordsToExport = getFilteredHistory();
-      if (recordsToExport.length === 0) return;
-      let csv = 'Maquina;Motivo;Inicio;Fim;Status;Observacao\n';
-      recordsToExport.forEach(r => {
-        csv += `"${r.machine}";"${r.reason}";"${new Date(r.startTimestamp).toLocaleString()}";"${r.endTimestamp ? new Date(r.endTimestamp).toLocaleString() : ''}";"${r.isActive ? 'ATIVA' : 'ENCERRADA'}";"${r.observation || ''}"\n`;
-      });
-      const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = 'historico_paradas.csv';
-      link.click();
-    };
-
-    window.onload = function() {
-      initRealtimeSync();
-      setInterval(updateTimers, 1000);
-    };
-  </script>
-</head>
-<body class="bg-slate-900 text-slate-100 font-sans min-h-screen flex flex-col antialiased">
-
-  <!-- Cabeçalho -->
-  <header class="bg-slate-800 border-b border-slate-700/60 sticky top-0 z-30 shadow-md">
-    <div class="max-w-7xl mx-auto px-4 py-3.5 flex items-center justify-between">
-      <div class="flex items-center space-x-3">
-        <div class="p-2 bg-sky-500/10 border border-sky-500/30 rounded-lg text-sky-400 font-bold text-lg">
-          ⚙️
-        </div>
-        <div>
-          <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white flex items-center gap-2">
-            Monitor de Paradas
-          </h1>
-          <p class="text-xs text-slate-400">Modo Nuvem (Tempo Real)</p>
-        </div>
-      </div>
-      <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
-        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span>Online</span>
-      </div>
-    </div>
-  </header>
-
-  <!-- Conteúdo Principal -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 space-y-6">
-
-    <!-- ESTATÍSTICAS / KPIs -->
-    <section class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-      <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between">
-        <span class="text-xs text-slate-400">Total de Máquinas</span>
-        <div class="text-2xl font-bold text-white">5</div>
-      </div>
-      <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between">
-        <span class="text-xs text-emerald-400">Em Produção</span>
-        <div id="statOperating" class="text-2xl font-bold text-emerald-400">5</div>
-      </div>
-      <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between">
-        <span class="text-xs text-red-400">Em Parada</span>
-        <div id="statStopped" class="text-2xl font-bold text-red-400">0</div>
-      </div>
-      <div class="bg-slate-800 border border-slate-700 rounded-xl p-4 flex flex-col justify-between">
-        <span class="text-xs text-sky-400">Paradas Hoje</span>
-        <div id="statTodayCount" class="text-2xl font-bold text-sky-400">0</div>
-      </div>
-    </section>
-
-    <!-- STATUS DAS MÁQUINAS -->
-    <section class="space-y-4">
-      <h2 class="text-base sm:text-lg font-semibold text-slate-200 flex items-center gap-2">
-        📊 Status das Máquinas (Tempo Real)
-      </h2>
-      <div id="machinesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
-    </section>
-
-    <!-- FORMULÁRIO DE REGISTAR PARADA -->
-    <section class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-md">
-      <div class="flex items-center gap-2.5 pb-4 mb-4 border-b border-slate-700">
-        <div class="p-2 bg-red-500/10 text-red-400 rounded-lg font-bold">
-          ▶️
-        </div>
-        <div>
-          <h3 class="font-bold text-slate-100 text-base">Registrar Nova Parada</h3>
-          <p class="text-xs text-slate-400">Inicie a contagem e sincroniza com todos os telemóveis</p>
-        </div>
-      </div>
-
-      <form id="startStopForm" class="space-y-4" onsubmit="window.handleStartDowntime(event)">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1.5">Selecione a Máquina *</label>
-            <select id="machineSelect" required
-              class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-sky-500">
-              <option value="" disabled selected>Escolha uma máquina...</option>
-              <option value="EPSON">EPSON</option>
-              <option value="VANGUARD">VANGUARD</option>
-              <option value="AGFA">AGFA</option>
-              <option value="P5">P5</option>
-              <option value="LIYU">LIYU</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1.5">Motivo da Parada *</label>
-            <select id="reasonSelect" required
-              class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-100 focus:outline-none focus:border-sky-500">
-              <option value="" disabled selected>Escolha o motivo...</option>
-              <option value="Aguardando PCP">Aguardando PCP</option>
-              <option value="Aguardando arquivo na pré-impressão">Aguardando arquivo na pré-impressão</option>
-              <option value="Máquina parada manutenção">Máquina parada manutenção</option>
-              <option value="Colocar/retirar Skins">Colocar/retirar Skins</option>
-              <option value="Manutenção programada">Manutenção programada</option>
-              <option value="Troca de setup">Troca de setup</option>
-              <option value="Outros">Outros</option>
-            </select>
-          </div>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-300 mb-1.5">Observação (Opcional)</label>
-          <textarea id="observationInput" rows="2" placeholder="Detalhes adicionais..."
-            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-slate-100 focus:outline-none focus:border-sky-500 resize-none"></textarea>
-        </div>
-        <div class="flex justify-end">
-          <button type="submit"
-            class="w-full sm:w-auto px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white font-semibold text-sm rounded-lg shadow transition-all flex items-center justify-center gap-2 cursor-pointer">
-            ⚡ Iniciar Parada & Avisar WhatsApp
-          </button>
-        </div>
-      </form>
-    </section>
-
-    <!-- HISTÓRICO -->
-    <section class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-md space-y-4">
-      <div class="flex flex-col md:flex-row items-center justify-between gap-3 pb-3 border-b border-slate-700">
-        <h3 class="font-bold text-slate-100 text-base flex items-center gap-2">
-          📜 Histórico de Paradas
-        </h3>
-        
-        <div class="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
-          <div class="flex items-center gap-1.5 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs">
-            <span class="text-slate-400">Filtrar Data:</span>
-            <input type="date" id="filterDate" onchange="window.renderUI()" class="bg-transparent text-slate-200 focus:outline-none cursor-pointer">
-            <button onclick="window.clearDateFilter()" title="Limpar filtro" class="text-slate-400 hover:text-white px-1">✕</button>
-          </div>
-
-          <button onclick="window.shareWhatsApp()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer">
-            💬 WhatsApp
-          </button>
-          <button onclick="window.exportToCSV()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer">
-            📥 CSV
-          </button>
-          <button onclick="window.clearHistory()" class="px-3 py-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer">
-            🗑️ Limpar
-          </button>
-        </div>
-      </div>
-
-      <div id="historyList" class="space-y-2.5"></div>
-    </section>
-  </main>
-</body>
-</html>
+        card.innerHTML = html
