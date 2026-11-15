@@ -6,27 +6,12 @@
   <title>Monitor de Paradas de Máquinas</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            industrial: {
-              800: '#1e293b',
-              900: '#0f172a'
-            }
-          }
-        }
-      }
-    }
-  </script>
   <!-- Firebase SDKs (Modular v10) -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // ⚠️ MANTÉM OS TEUS DADOS REAIS DO FIREBASE AQUI EM BAIXO:
+    // ⚠️ ATENÇÃO: Mantém os teus dados reais do Firebase aqui!
     const firebaseConfig = {
       apiKey: "AIzaSyCWDJ1xv4eEjFLNnuoPON3IZR...",
       authDomain: "monitor-paradas.firebaseapp.com",
@@ -42,38 +27,27 @@
     const MACHINES = ["EPSON", "VANGUARD", "AGFA", "P5", "LIYU"];
     let activeDowntimes = {};
     let historyRecords = [];
-    // Controla quais máquinas já dispararam o alarme neste dispositivo para não repetir infinito
     let alertedMachines = {};
-
-    // Sistema de Áudio (Web Audio API - funciona sem ficheiros mp3 externos)
     let audioCtx = null;
+
     window.unlockAudioAndNotifications = async function() {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      if (audioCtx.state === 'suspended') {
-        await audioCtx.resume();
-      }
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') await audioCtx.resume();
       if ("Notification" in window && Notification.permission !== "granted") {
         await Notification.requestPermission();
       }
-      updateAlertButtonStatus();
-      playAlarmBeep(); // Toca um bipe curto de teste para confirmar
+      alert('Alertas, som e notificações ativados com sucesso!');
     };
 
     function playAlarmBeep() {
       try {
-        if (!audioCtx) {
-          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (audioCtx.state === 'suspended') audioCtx.resume();
-
-        // Toca 3 bipes rápidos de alerta
         [0, 0.25, 0.5].forEach(delay => {
           const osc = audioCtx.createOscillator();
           const gain = audioCtx.createGain();
           osc.type = 'sine';
-          osc.frequency.setValueAtTime(880, audioCtx.currentTime + delay); // Nota Lá agudo
+          osc.frequency.setValueAtTime(880, audioCtx.currentTime + delay);
           gain.gain.setValueAtTime(0.4, audioCtx.currentTime + delay);
           gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + delay + 0.18);
           osc.connect(gain);
@@ -81,39 +55,17 @@
           osc.start(audioCtx.currentTime + delay);
           osc.stop(audioCtx.currentTime + delay + 0.18);
         });
-      } catch (e) {
-        console.log("Áudio bloqueado pelo navegador até interação:", e);
-      }
+      } catch (e) {}
     }
 
     function triggerSystemAlert(machine, reason) {
-      // 1. Vibração no telemóvel Android
-      if ("vibrate" in navigator) {
-        navigator.vibrate([500, 200, 500, 200, 800]);
-      }
-
-      // 2. Som de alarme
+      if ("vibrate" in navigator) navigator.vibrate([500, 200, 500, 200, 800]);
       playAlarmBeep();
-
-      // 3. Notificação Push na barra superior do Android
       if ("Notification" in window && Notification.permission === "granted") {
         new Notification(`⏰ TEMPO ESGOTADO: ${machine}`, {
-          body: `A parada (${reason}) atingiu o tempo previsto! Finalize no sistema.`,
-          tag: `alert-${machine}`,
+          body: `A parada (${reason}) atingiu o tempo previsto!`,
           requireInteraction: true
         });
-      }
-    }
-
-    function updateAlertButtonStatus() {
-      const btn = document.getElementById('enableAlertsBtn');
-      if (!btn) return;
-      if ("Notification" in window && Notification.permission === "granted") {
-        btn.innerHTML = '🔔 Alertas Ativos';
-        btn.className = 'px-3 py-1.5 rounded-full bg-sky-500/10 border border-sky-500/30 text-sky-400 text-xs font-medium cursor-pointer';
-      } else {
-        btn.innerHTML = '🔕 Ativar Alertas';
-        btn.className = 'px-3 py-1.5 rounded-full bg-amber-500/20 border border-amber-500/50 text-amber-300 text-xs font-bold animate-bounce cursor-pointer';
       }
     }
 
@@ -123,17 +75,13 @@
         snapshot.forEach((docSnap) => {
           activeDowntimes[docSnap.id] = { firebaseDocId: docSnap.id, ...docSnap.data() };
         });
-
-        // Limpa controlo de alerta se a máquina já voltou a trabalhar
         Object.keys(alertedMachines).forEach(m => {
           if (!activeDowntimes[m]) delete alertedMachines[m];
         });
-
         renderUI();
       });
 
-      const q = query(collection(db, "history_records"), orderBy("startTimestamp", "desc"));
-      onSnapshot(q, (snapshot) => {
+      onSnapshot(query(collection(db, "history_records"), orderBy("startTimestamp", "desc")), (snapshot) => {
         historyRecords = [];
         snapshot.forEach((docSnap) => {
           historyRecords.push({ firebaseDocId: docSnap.id, ...docSnap.data() });
@@ -154,33 +102,22 @@
       MACHINES.forEach(mach => {
         const active = activeDowntimes[mach];
         const isStopped = !!active;
-
-        // Verifica se tem limite e se já estourou
         let isOverdue = false;
-        if (isStopped && active.limitTimestamp) {
-          isOverdue = Date.now() >= active.limitTimestamp;
+        if (isStopped && active.limitTimestamp && Date.now() >= active.limitTimestamp) {
+          isOverdue = true;
         }
 
         const card = document.createElement('div');
-        card.id = `card-${mach}`;
-        card.className = `rounded-xl border p-4 shadow-sm flex flex-col justify-between transition-colors ${
-          isOverdue
-            ? 'bg-amber-950/50 border-amber-500 animate-pulse'
-            : isStopped
-              ? 'bg-red-950/30 border-red-500/80'
-              : 'bg-slate-800 border-slate-700'
+        card.className = `rounded-xl border p-4 shadow-sm flex flex-col justify-between ${
+          isOverdue ? 'bg-amber-950/50 border-amber-500 animate-pulse' : isStopped ? 'bg-red-950/30 border-red-500/80' : 'bg-slate-800 border-slate-700'
         }`;
 
         let html = `
           <div class="space-y-3">
             <div class="flex items-center justify-between border-b border-slate-700/60 pb-2">
               <h3 class="font-bold text-white text-base">${mach}</h3>
-              <span id="badge-${mach}" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                isOverdue
-                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/60'
-                  : isStopped
-                    ? 'bg-red-500/20 text-red-400 border border-red-500/40'
-                    : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                isOverdue ? 'bg-amber-500/20 text-amber-300 border border-amber-500/60' : isStopped ? 'bg-red-500/20 text-red-400 border border-red-500/40' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
               }">
                 ${isOverdue ? '⏰ TEMPO ESGOTADO' : isStopped ? '🔴 EM PARADA' : '🟢 OPERACIONAL'}
               </span>
@@ -193,15 +130,11 @@
               <p><strong class="text-slate-400">Motivo:</strong> ${active.reason}</p>
               ${active.observation ? `<p><strong class="text-slate-400">Obs:</strong> ${active.observation}</p>` : ''}
               <p><strong class="text-slate-400">Início:</strong> ${new Date(active.startTimestamp).toLocaleTimeString()}</p>
-              ${active.limitMinutes ? `<p><strong class="text-slate-400">Previsão:</strong> ${active.limitMinutes} min (até ${new Date(active.limitTimestamp).toLocaleTimeString()})</p>` : ''}
+              ${active.limitMinutes ? `<p><strong class="text-slate-400">Previsão:</strong> ${active.limitMinutes} min</p>` : ''}
               
               <div class="bg-slate-900/90 border ${isOverdue ? 'border-amber-500/80' : 'border-red-500/50'} rounded-lg p-3 text-center mt-2 space-y-1">
-                <span class="text-[10px] text-slate-400 block uppercase">Tempo Total Parada</span>
-                <div class="text-2xl font-mono font-bold ${isOverdue ? 'text-amber-400' : 'text-red-400'} timer-display"
-                     data-machine="${mach}"
-                     data-reason="${active.reason}"
-                     data-start="${active.startTimestamp}"
-                     data-limit="${active.limitTimestamp || ''}">00:00:00</div>
+                <span class="text-[10px] text-slate-400 block uppercase">Tempo Decorrido</span>
+                <div class="text-2xl font-mono font-bold ${isOverdue ? 'text-amber-400' : 'text-red-400'} timer-display" data-start="${active.startTimestamp}">00:00:00</div>
                 ${active.limitTimestamp ? `<div id="countdown-${mach}" class="text-xs font-mono font-semibold text-sky-400">Calculando...</div>` : ''}
               </div>
             </div>
@@ -212,12 +145,286 @@
             </button>
           `;
         } else {
-          html += `
-            <div class="py-6 text-center text-slate-400 text-xs">
-              ✅ Máquina em plena produção
-            </div>
-          `;
+          html += `<div class="py-6 text-center text-slate-400 text-xs">✅ Máquina em plena produção</div>`;
         }
 
         html += `</div>`;
-        card.innerHTML = html
+        card.innerHTML = html;
+        grid.appendChild(card);
+      });
+
+      const sel = document.getElementById('machineSelect');
+      if (sel) {
+        for (let opt of sel.options) {
+          if (opt.value) {
+            opt.disabled = !!activeDowntimes[opt.value];
+            opt.text = opt.disabled ? `${opt.value} (EM PARADA)` : opt.value;
+          }
+        }
+      }
+
+      updateTimers();
+      renderHistory();
+      updateStats();
+    }
+
+    function getFilteredHistory() {
+      const dateInput = document.getElementById('filterDate');
+      if (!dateInput || !dateInput.value) return historyRecords;
+      return historyRecords.filter(rec => new Date(rec.startTimestamp).toISOString().split('T')[0] === dateInput.value);
+    }
+
+    window.clearDateFilter = function() {
+      document.getElementById('filterDate').value = '';
+      renderUI();
+    };
+
+    function renderHistory() {
+      const list = document.getElementById('historyList');
+      if (!list) return;
+      list.innerHTML = '';
+      const filteredRecords = getFilteredHistory();
+
+      if (filteredRecords.length === 0) {
+        list.innerHTML = '<p class="text-xs text-slate-500 text-center py-4">Nenhum registo encontrado.</p>';
+        return;
+      }
+
+      filteredRecords.forEach((rec) => {
+        const isRunning = rec.isActive;
+        const duration = isRunning ? 'Em andamento...' : formatDuration(rec.endTimestamp - rec.startTimestamp);
+        const item = document.createElement('div');
+        item.className = 'bg-slate-900/80 border border-slate-700/70 rounded-lg p-3 text-xs space-y-1 relative';
+        item.innerHTML = `
+          <div class="flex justify-between items-center font-bold text-white pr-6">
+            <span>${rec.machine} - ${rec.reason}</span>
+            <span class="${isRunning ? 'text-red-400' : 'text-emerald-400'}">${isRunning ? '🔴 ATIVA' : '🟢 ENCERRADA'}</span>
+          </div>
+          <p class="text-slate-400">Início: ${new Date(rec.startTimestamp).toLocaleString()}</p>
+          <p class="text-sky-400 font-mono">Duração: ${duration}</p>
+          ${rec.observation ? `<p class="italic text-slate-300">"Obs: ${rec.observation}"</p>` : ''}
+          <button onclick="window.deleteHistoryItem('${rec.firebaseDocId}')" class="absolute top-2.5 right-2.5 p-1 text-slate-400 hover:text-red-400 cursor-pointer text-sm">🗑️</button>
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    window.deleteHistoryItem = async function(docId) {
+      if (confirm('Apagar este registo?')) await deleteDoc(doc(db, "history_records", docId));
+    };
+
+    window.clearHistory = async function() {
+      if (confirm('Apagar TODO o histórico?')) {
+        for (let rec of historyRecords) await deleteDoc(doc(db, "history_records", rec.firebaseDocId));
+      }
+    };
+
+    window.handleStartDowntime = async function(e) {
+      e.preventDefault();
+      const machine = document.getElementById('machineSelect').value;
+      const reason = document.getElementById('reasonSelect').value;
+      const limitMinsVal = document.getElementById('limitMinutesInput').value;
+      const observation = document.getElementById('observationInput').value.trim();
+
+      if (!machine || !reason) return;
+
+      const startTimestamp = Date.now();
+      const limitMinutes = limitMinsVal ? parseInt(limitMinsVal, 10) : null;
+      const limitTimestamp = limitMinutes ? startTimestamp + (limitMinutes * 60 * 1000) : null;
+
+      const record = { machine, reason, observation, startTimestamp, limitMinutes, limitTimestamp, endTimestamp: null, isActive: true };
+
+      try {
+        await setDoc(doc(db, "active_downtimes", machine), record);
+        await addDoc(collection(db, "history_records"), record);
+        document.getElementById('startStopForm').reset();
+        window.open(`https://api.whatsapp.com/send?text=*🚨 ALERTA*%0A• Máquina: ${machine}%0A• Motivo: ${reason}`, '_blank');
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    window.handleEndDowntime = async function(machineName) {
+      const active = activeDowntimes[machineName];
+      if (!active) return;
+      const endTimestamp = Date.now();
+      const durationFormatted = formatDuration(endTimestamp - active.startTimestamp);
+
+      try {
+        await deleteDoc(doc(db, "active_downtimes", machineName));
+        delete alertedMachines[machineName];
+        const matchingHistory = historyRecords.find(r => r.machine === machineName && r.isActive);
+        if (matchingHistory) {
+          await updateDoc(doc(db, "history_records", matchingHistory.firebaseDocId), { endTimestamp, isActive: false });
+        }
+        window.open(`https://api.whatsapp.com/send?text=*✅ FINALIZADA*%0A• Máquina: ${machineName}%0A• Duração: ${durationFormatted}`, '_blank');
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    function updateStats() {
+      const activeCount = Object.keys(activeDowntimes).length;
+      document.getElementById('statOperating').textContent = MACHINES.length - activeCount;
+      document.getElementById('statStopped').textContent = activeCount;
+      const todayStart = new Date().setHours(0,0,0,0);
+      document.getElementById('statTodayCount').textContent = historyRecords.filter(r => r.startTimestamp >= todayStart).length;
+    }
+
+    function updateTimers() {
+      const now = Date.now();
+      document.querySelectorAll('.timer-display').forEach(el => {
+        const start = parseInt(el.getAttribute('data-start'), 10);
+        el.textContent = formatDuration(now - start);
+      });
+
+      Object.keys(activeDowntimes).forEach(mach => {
+        const active = activeDowntimes[mach];
+        if (active && active.limitTimestamp) {
+          const remaining = active.limitTimestamp - now;
+          const cdEl = document.getElementById(`countdown-${mach}`);
+          if (remaining > 0) {
+            if (cdEl) cdEl.textContent = `⏳ Restante: ${formatDuration(remaining)}`;
+          } else {
+            const exceeded = Math.abs(remaining);
+            if (cdEl) {
+              cdEl.className = "text-xs font-mono font-bold text-amber-400";
+              cdEl.textContent = `⚠️ EXCEDIDO: +${formatDuration(exceeded)}`;
+            }
+            if (!alertedMachines[mach]) {
+              alertedMachines[mach] = true;
+              triggerSystemAlert(mach, active.reason);
+              renderUI();
+            }
+          }
+        }
+      });
+    }
+
+    function formatDuration(ms) {
+      const secs = Math.floor(ms / 1000);
+      const h = String(Math.floor(secs / 3600)).padStart(2, '0');
+      const m = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
+      const s = String(secs % 60).padStart(2, '0');
+      return `${h}:${m}:${s}`;
+    }
+
+    window.shareWhatsApp = function() {
+      const records = getFilteredHistory();
+      let text = '*📊 RELATÓRIO*%0A%0A';
+      records.slice(0, 5).forEach(r => {
+        text += `• *${r.machine}* (${r.reason})%0A`;
+      });
+      window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+    };
+
+    window.exportToCSV = function() {
+      const records = getFilteredHistory();
+      let csv = 'Maquina;Motivo;Inicio;Fim;Status\n';
+      records.forEach(r => {
+        csv += `"${r.machine}";"${r.reason}";"${new Date(r.startTimestamp).toLocaleString()}";"${r.endTimestamp ? new Date(r.endTimestamp).toLocaleString() : ''}";"${r.isActive ? 'ATIVA' : 'ENCERRADA'}"\n`;
+      });
+      const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'historico.csv';
+      link.click();
+    };
+
+    window.onload = function() {
+      initRealtimeSync();
+      setInterval(updateTimers, 1000);
+    };
+  </script>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen flex flex-col antialiased">
+  <header class="bg-slate-800 border-b border-slate-700/60 sticky top-0 z-30 shadow-md">
+    <div class="max-w-7xl mx-auto px-4 py-3.5 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="p-2 bg-sky-500/10 border border-sky-500/30 rounded-lg text-sky-400 font-bold">⚙️</div>
+        <div>
+          <h1 class="text-base sm:text-xl font-bold text-white">Monitor de Paradas</h1>
+          <p class="text-xs text-slate-400">Tempo Real</p>
+        </div>
+      </div>
+      <button onclick="window.unlockAudioAndNotifications()" class="px-3 py-1.5 rounded-full bg-amber-500/20 border border-amber-500 text-amber-300 text-xs font-bold cursor-pointer">🔔 Ativar Alertas</button>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 space-y-6">
+    <section class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div class="bg-slate-800 border border-slate-700 rounded-xl p-4"><span class="text-xs text-slate-400">Total</span><div class="text-2xl font-bold text-white">5</div></div>
+      <div class="bg-slate-800 border border-slate-700 rounded-xl p-4"><span class="text-xs text-emerald-400">Em Produção</span><div id="statOperating" class="text-2xl font-bold text-emerald-400">5</div></div>
+      <div class="bg-slate-800 border border-slate-700 rounded-xl p-4"><span class="text-xs text-red-400">Em Parada</span><div id="statStopped" class="text-2xl font-bold text-red-400">0</div></div>
+      <div class="bg-slate-800 border border-slate-700 rounded-xl p-4"><span class="text-xs text-sky-400">Paradas Hoje</span><div id="statTodayCount" class="text-2xl font-bold text-sky-400">0</div></div>
+    </section>
+
+    <section class="space-y-4">
+      <h2 class="text-base sm:text-lg font-semibold text-slate-200">📊 Status das Máquinas</h2>
+      <div id="machinesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+    </section>
+
+    <section class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-md">
+      <h3 class="font-bold text-slate-100 text-base mb-4">Registrar Nova Parada</h3>
+      <form id="startStopForm" class="space-y-4" onsubmit="window.handleStartDowntime(event)">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">Máquina *</label>
+            <select id="machineSelect" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-100">
+              <option value="" disabled selected>Escolha...</option>
+              <option value="EPSON">EPSON</option>
+              <option value="VANGUARD">VANGUARD</option>
+              <option value="AGFA">AGFA</option>
+              <option value="P5">P5</option>
+              <option value="LIYU">LIYU</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1.5">Motivo *</label>
+            <select id="reasonSelect" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2.5 text-sm text-slate-100">
+              <option value="" disabled selected>Escolha...</option>
+              <option value="Aguardando PCP">Aguardando PCP</option>
+              <option value="Aguardando arquivo na pré-impressão">Aguardando arquivo na pré-impressão</option>
+              <option value="Máquina parada manutenção">Máquina parada manutenção</option>
+              <option value="Colocar/retirar Skins">Colocar/retirar Skins</option>
+              <option value="Manutenção programada">Manutenção programada</option>
+              <option value="Troca de setup">Troca de setup</option>
+              <option value="Pausa / Refeição">Pausa / Refeição</option>
+              <option value="Outros">Outros</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1.5">Tempo Previsto / Alarme (Minutos)</label>
+          <div class="flex flex-wrap items-center gap-2">
+            <input type="number" id="limitMinutesInput" min="1" max="1440" placeholder="Ex: 15 (opcional)" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-slate-100">
+            <button type="button" onclick="window.setPresetMinutes(15)" class="px-3 py-2 bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold">15m</button>
+            <button type="button" onclick="window.setPresetMinutes(30)" class="px-3 py-2 bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold">30m</button>
+            <button type="button" onclick="window.setPresetMinutes(60)" class="px-3 py-2 bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold">1h</button>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1.5">Observação</label>
+          <textarea id="observationInput" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-slate-100"></textarea>
+        </div>
+        <div class="flex justify-end">
+          <button type="submit" class="w-full sm:w-auto px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white font-semibold text-sm rounded-lg">⚡ Iniciar Parada & Avisar WhatsApp</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-md space-y-4">
+      <div class="flex justify-between items-center pb-3 border-b border-slate-700">
+        <h3 class="font-bold text-slate-100 text-base">📜 Histórico</h3>
+        <div class="flex gap-2">
+          <input type="date" id="filterDate" onchange="window.renderUI()" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
+          <button onclick="window.shareWhatsApp()" class="px-3 py-1 bg-emerald-600 text-white rounded text-xs">WhatsApp</button>
+          <button onclick="window.exportToCSV()" class="px-3 py-1 bg-slate-700 text-slate-200 rounded text-xs">CSV</button>
+          <button onclick="window.clearHistory()" class="px-3 py-1 bg-red-600 text-white rounded text-xs">Limpar</button>
+        </div>
+      </div>
+      <div id="historyList" class="space-y-2.5"></div>
+    </section>
+  </main>
+</body>
+</html>
